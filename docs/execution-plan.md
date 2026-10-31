@@ -53,7 +53,7 @@ D1 agent loop (≤ 8 steps, read-only tools, forced `submitVerdict`) · D2 3 ver
 - [x] **FE4 · Inbox + board on the client.** Case list, chat, customer card, reply box, tech board — all through `ApiClient`, toasts from `ApiError.message`.
 - [x] **FE5 · Investigate panel on SSE.** `fetch` + SSE parser; trace row per `tool_call`/`tool_result`; verdict card for all 5 outcomes (3 verdicts + 2 guard states, `downgraded` notice, replay badge). The mock replays a scripted stream per case with delays.
 - [x] **FE6 · Action buttons.** Restore / refund / send to tech / resolve → `ActionResult` toast; the reply box is prefilled from `verdict.replyDraft`.
-- [ ] **FE7 · Metrics strip.** Outcome mix, kept from tech, downgrades, eval accuracy.
+- [x] **FE7 · Metrics strip.** Outcome mix, kept from tech, downgrades, eval accuracy.
 - [ ] **FE8 · Switch to real.** After sync ② reads go `http`; after sync ③ investigate goes `http`. Mock stays as a fallback.
 
 ## Freeze (both, from 15:30)

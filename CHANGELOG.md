@@ -5,7 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). One line per m
 ## [Unreleased]
 
 ### Added
-- Frontend in `frontend/`: typed API client (http + in-browser mock agent-loop replay), policy-gate mock, SSE investigate panel.
+- Frontend in `frontend/`: typed API client (http + in-browser mock agent-loop replay), policy-gate mock, SSE investigate panel, metrics strip.
 - API contract v1 (`docs/api.md`) and BE/FE track split in the execution plan.
 - Execution plan for the Go + Postgres port (`docs/execution-plan.md`).
 - Go + Postgres rules in `CLAUDE.md`; kickoff prompt merged; spec fixed to 7 cases + metrics.

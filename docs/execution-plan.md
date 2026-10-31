@@ -9,8 +9,8 @@ Owner: **A** = core (entity, usecase, LLM adapter, policies) · **B** = edges (m
 
 | # | Conflict | Sources | Proposal |
 |---|---|---|---|
-| D1 | Agent loop vs. one LLM call over a pre-built context | `decisions.md`, `feat/closer-core`, `feat/verdict-backbone` vs. `docs/verdict-concept:docs/ARCHITECTURE.md` | Agent loop (≤ 8 steps). It already works in TS on 2 branches, and "agent picks what to read" is the Use of AI story |
-| D2 | Outcomes: 5 (`user_can_fix · support_can_fix · tech_team · need_more_info · suspicious`) vs. 4 (`our_bug · user_misunderstanding · uncertain · suspicious`) | spec vs. `docs/verdict-concept` | 5. They map to who acts, which drives the buttons |
+| D1 | ✅ **Decided 2026-10-31: agent loop** (≤ 8 steps, read-only tools, forced `submitVerdict`). Not one LLM call over a pre-built context | team call | — |
+| D2 | Outcomes: 5 vs. 4 (`our_bug · user_misunderstanding · uncertain · suspicious`) | spec vs. `docs/verdict-concept` | 3 verdicts on who fixes it (`user_can_fix · support_can_fix · tech_team`) + 2 guard states (`need_more_info` = where the validator downgrades a bad verdict; `suspicious` = injection, blocks all actions, rule S1). The UI shows 3 + 2 |
 | D3 | Capability 4 (analyze interactions / score support) has no feature in the spec | brief vs. spec | Add Step 10: metrics + eval runner (accuracy over the seeded cases) |
 | D4 | The spec says 6 cases; the seed and `VERDICT.md` have 7 (case_105 "charged twice") | spec vs. `src/lib/domain/seed.ts` | 7. Fix the spec table |
 | D5 | The TS reference code is not on `main` | `feat/verdict-backbone`, `feat/closer-core` | Use `feat/verdict-backbone` as the port reference. Don't merge its TS backend; take only `src/app` + `src/components` into `frontend/` (Step 3) |
@@ -74,6 +74,10 @@ Owner: **A** = core (entity, usecase, LLM adapter, policies) · **B** = edges (m
 - [ ] **Step 13 · Release (B).** README: clone → `make up seed run` + frontend start. Delete the TS backend (`src/lib`, `src/app/api`). Final `go vet ./... && go test ./...` + frontend lint/typecheck.
   DoD: a fresh clone + README steps = a working demo without a key.
 - [ ] **Step 14 · Deliverables (both, by 16:30).** Record the video demo (cases 103 → 104 board → 107 blocked → metrics), deck ≤ 10 slides, GitHub ZIP into the team folder, all links public.
+
+## Stretch (only after Step 13 is green)
+
+- [ ] **S1 · Fix-it agent for `user_can_fix`.** A second agent calls our product's MCP to perform the customer's fix (e.g. cancel the App Store subscription), instead of only sending instructions. Write tools pass the same policy gate + a human click; every call is audited.
 
 ## Cut order if late
 

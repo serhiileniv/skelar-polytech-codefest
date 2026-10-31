@@ -1,0 +1,83 @@
+{
+ "caseId": "case_103",
+ "model": "claude-opus-5-5",
+ "source": "scripted",
+ "recordedAt": "2026-10-31T12:00:00Z",
+ "turns": [
+  {
+   "text": "Reading the complaint about locked lessons.",
+   "calls": [
+    {
+     "id": "toolu_case_103_1a",
+     "name": "getChat",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Checking that the Premium payment went through.",
+   "calls": [
+    {
+     "id": "toolu_case_103_2a",
+     "name": "getBilling",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Checking whether access was granted.",
+   "calls": [
+    {
+     "id": "toolu_case_103_3a",
+     "name": "getEntitlements",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Looking for a failed grant after payment.",
+   "calls": [
+    {
+     "id": "toolu_case_103_4a",
+     "name": "getErrorLogs",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Paid but the grant failed; support can restore access on ent_0003.",
+   "calls": [
+    {
+     "id": "toolu_case_103_5a",
+     "name": "submitVerdict",
+     "input": {
+      "outcome": "support_can_fix",
+      "confidence": 0.95,
+      "customerGoal": "Get the Premium access they paid for.",
+      "summary": "pay_0003 succeeded an hour ago, but the access grant failed (err_0001, GRANT_FAILED), so ent_0003 is still inactive. Support can restore it.",
+      "evidence": [
+       {
+        "id": "pay_0003",
+        "note": "$29.99 web payment succeeded 1 hour ago"
+       },
+       {
+        "id": "ent_0003",
+        "note": "Entitlement inactive, no payment linked"
+       },
+       {
+        "id": "err_0001",
+        "note": "GRANT_FAILED right after the payment"
+       }
+      ],
+      "supportAction": {
+       "type": "restore_access",
+       "entitlementId": "ent_0003",
+       "reason": "Paid (pay_0003) but the grant failed (err_0001)"
+      },
+      "replyDraft": "Hi Sofia, sorry about that — your payment went through but access didn't unlock because of a glitch on our side. Premium is now active; please reopen the app."
+     }
+    }
+   ]
+  }
+ ]
+}

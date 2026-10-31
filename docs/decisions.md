@@ -14,3 +14,6 @@ One line each: date — decision — why.
 - 2026-10-31 — D2–D6 accepted as proposed in `docs/execution-plan.md` (3 verdicts + 2 guard states, metrics for capability 4, 7 seeded cases, `feat/verdict-backbone` = port reference, SSE from Go).
 - 2026-10-31 — Split into BE (Go, friend) and FE (Next.js, Serhii) tracks; `docs/api.md` is the only interface; FE builds on a mock client — no track waits for the other.
 - 2026-10-31 — Seed is Go code (`internal/seed`) loaded by `make seed` via the `ResetDemo` usecase, not a SQL migration — `DELETE /api/state` reuses it; Postgres on host port 5433 to avoid clashing with a local 5432.
+- 2026-10-31 — Last agent step offers only `submitVerdict` (+ instruction) instead of forced `tool_choice`, which current Claude models reject; no valid verdict after 8 steps → stored `need_more_info` (downgraded).
+- 2026-10-31 — Default model `claude-opus-5-5` with server-side refusal fallback (`fallbacks: "default"`); replay recordings in `backend/replay/` are scripted from the FE mock until a key records live runs (`VERDICT_RECORD=1`).
+- 2026-10-31 — Rule S1 blocks every action kind on a suspicious case (contract: case_107 "any action → blocked"), not only support actions; blocked attempts are audited in their own transaction.

@@ -1,0 +1,75 @@
+{
+ "caseId": "case_106",
+ "model": "claude-opus-5-5",
+ "source": "scripted",
+ "recordedAt": "2026-10-31T12:00:00Z",
+ "turns": [
+  {
+   "text": "Reading the message — it's very short.",
+   "calls": [
+    {
+     "id": "toolu_case_106_1a",
+     "name": "getChat",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Checking the account and platform.",
+   "calls": [
+    {
+     "id": "toolu_case_106_2a",
+     "name": "getCustomer",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Looking for any errors on the account.",
+   "calls": [
+    {
+     "id": "toolu_case_106_3a",
+     "name": "getErrorLogs",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Checking billing for failed payments or a lapsed subscription.",
+   "calls": [
+    {
+     "id": "toolu_case_106_4a",
+     "name": "getBilling",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Nothing on record explains the problem; I need to ask what is broken.",
+   "calls": [
+    {
+     "id": "toolu_case_106_5a",
+     "name": "submitVerdict",
+     "input": {
+      "outcome": "need_more_info",
+      "confidence": 0.42,
+      "customerGoal": "Unclear — something is not working.",
+      "summary": "No errors, failed payments or access problems on record (active sub_0007, last payment pay_0007 succeeded). Not enough information to act.",
+      "evidence": [
+       {
+        "id": "msg_0009",
+        "note": "\"Nothing works\" — no details"
+       },
+       {
+        "id": "pay_0007",
+        "note": "Latest payment succeeded"
+       }
+      ],
+      "clarifyingQuestion": "What exactly isn't working — logging in, opening lessons, or billing? And on which device?",
+      "replyDraft": "Hi Oliver, sorry you're having trouble! What exactly isn't working — logging in, opening lessons, or billing? And on which device?"
+     }
+    }
+   ]
+  }
+ ]
+}

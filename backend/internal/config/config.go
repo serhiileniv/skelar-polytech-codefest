@@ -5,7 +5,9 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -14,7 +16,10 @@ type Config struct {
 	FrontendOrigins []string // CORS allow-list, from comma-separated FRONTEND_ORIGIN
 	AnthropicAPIKey string
 	AnthropicModel  string
-	Replay          bool
+	Replay          bool          // VERDICT_REPLAY=1 forces recordings even with a key
+	Record          bool          // VERDICT_RECORD=1 saves successful live runs to ReplayDir
+	ReplayDir       string        // VERDICT_REPLAY_DIR, default "replay"
+	ReplayDelay     time.Duration // VERDICT_REPLAY_DELAY_MS between replayed turns, default 600
 	LogLevel        slog.Level
 }
 
@@ -24,9 +29,16 @@ func Load() (Config, error) {
 		HTTPAddr:        env("HTTP_ADDR", ":8080"),
 		FrontendOrigins: list(env("FRONTEND_ORIGIN", "http://localhost:3000,http://127.0.0.1:3000")),
 		AnthropicAPIKey: os.Getenv("ANTHROPIC_API_KEY"),
-		AnthropicModel:  env("ANTHROPIC_MODEL", "claude-sonnet-5-5"),
+		AnthropicModel:  env("ANTHROPIC_MODEL", "claude-opus-5-5"),
 		Replay:          os.Getenv("VERDICT_REPLAY") == "1",
+		Record:          os.Getenv("VERDICT_RECORD") == "1",
+		ReplayDir:       env("VERDICT_REPLAY_DIR", "replay"),
 	}
+	delay, err := strconv.Atoi(env("VERDICT_REPLAY_DELAY_MS", "600"))
+	if err != nil || delay < 0 {
+		return c, errors.New("VERDICT_REPLAY_DELAY_MS must be a non-negative integer")
+	}
+	c.ReplayDelay = time.Duration(delay) * time.Millisecond
 	if c.DatabaseURL == "" {
 		return c, errors.New("DATABASE_URL is required (see backend/.env.example)")
 	}

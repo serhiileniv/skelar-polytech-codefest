@@ -1,0 +1,95 @@
+{
+ "caseId": "case_104",
+ "model": "claude-opus-5-5",
+ "source": "scripted",
+ "recordedAt": "2026-10-31T12:00:00Z",
+ "turns": [
+  {
+   "text": "Reading the complaint about a charge after cancelling.",
+   "calls": [
+    {
+     "id": "toolu_case_104_1a",
+     "name": "getChat",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Confirming the web cancellation in session events.",
+   "calls": [
+    {
+     "id": "toolu_case_104_2a",
+     "name": "getSessionEvents",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Checking subscriptions and the new charge.",
+   "calls": [
+    {
+     "id": "toolu_case_104_3a",
+     "name": "getBilling",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Looking for a sync failure around the cancellation.",
+   "calls": [
+    {
+     "id": "toolu_case_104_4a",
+     "name": "getErrorLogs",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Checking whether other customers hit the same bug.",
+   "calls": [
+    {
+     "id": "toolu_case_104_5a",
+     "name": "findSimilarCustomers",
+     "input": {
+      "signature": "cancel_not_synced"
+     }
+    }
+   ]
+  },
+  {
+   "text": "This is a backend bug affecting many customers; it belongs to the tech team.",
+   "calls": [
+    {
+     "id": "toolu_case_104_6a",
+     "name": "submitVerdict",
+     "input": {
+      "outcome": "tech_team",
+      "confidence": 0.91,
+      "customerGoal": "Stay cancelled and not be charged again.",
+      "summary": "The customer cancelled on the web (ev_0006), but the cancel never reached the linked App Store subscription (err_0002, CANCEL_SYNC_TIMEOUT), so pay_0004 was charged 3 minutes later. 37 other customers match the same signature.",
+      "evidence": [
+       {
+        "id": "ev_0006",
+        "note": "Web cancellation 20 hours ago"
+       },
+       {
+        "id": "err_0002",
+        "note": "CANCEL_SYNC_TIMEOUT for sub_0005"
+       },
+       {
+        "id": "pay_0004",
+        "note": "$29.99 App Store charge 3 minutes after the cancel"
+       }
+      ],
+      "techIssue": {
+       "signature": "cancel_not_synced",
+       "title": "Web cancellation not synced to App Store",
+       "rootCause": "The cancel-sync job times out (CANCEL_SYNC_TIMEOUT), so linked App Store subscriptions keep renewing after a web cancel."
+      },
+      "replyDraft": "Hi Liam, you're right — you cancelled correctly and the charge is our bug. Our tech team is fixing it, and we'll make sure you're refunded as soon as it's resolved."
+     }
+    }
+   ]
+  }
+ ]
+}

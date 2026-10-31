@@ -48,7 +48,11 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
 	status, body := toAPIError(err)
 	if status >= 500 {
-		slog.ErrorContext(r.Context(), "request failed", "method", r.Method, "path", r.URL.Path, "err", err)
+		logErr(r, err)
 	}
 	writeJSON(w, status, body)
+}
+
+func logErr(r *http.Request, err error) {
+	slog.ErrorContext(r.Context(), "request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 }

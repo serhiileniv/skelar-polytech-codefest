@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). One line per m
 ## [Unreleased]
 
 ### Added
+- Go backend BE4–BE9: policy gate, validator, detectors, board merge; all `docs/api.md` endpoints; investigate agent loop over SSE with replay; metrics + `make eval`; e2e contract suite (`make smoke`).
 - Go backend BE1–BE3: skeleton (`backend/`, compose, migrations, `/health`, Makefile), entities + `0001_init.sql`, deterministic seed port.
 - Frontend in `frontend/`: typed API client (http + in-browser mock agent-loop replay), policy-gate mock, SSE investigate panel, metrics strip.
 - API contract v1 (`docs/api.md`) and BE/FE track split in the execution plan.

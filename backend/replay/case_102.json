@@ -1,0 +1,86 @@
+{
+ "caseId": "case_102",
+ "model": "claude-opus-5-5",
+ "source": "scripted",
+ "recordedAt": "2026-10-31T12:00:00Z",
+ "turns": [
+  {
+   "text": "Reading the customer's request.",
+   "calls": [
+    {
+     "id": "toolu_case_102_1a",
+     "name": "getChat",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Checking the account email.",
+   "calls": [
+    {
+     "id": "toolu_case_102_2a",
+     "name": "getCustomer",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Checking whether the reset emails were sent and delivered.",
+   "calls": [
+    {
+     "id": "toolu_case_102_3a",
+     "name": "getEmailLog",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Finding the help article about missing reset emails.",
+   "calls": [
+    {
+     "id": "toolu_case_102_4a",
+     "name": "searchHelp",
+     "input": {
+      "query": "password reset email spam"
+     }
+    }
+   ]
+  },
+  {
+   "text": "All three emails were delivered, so they are most likely in spam.",
+   "calls": [
+    {
+     "id": "toolu_case_102_5a",
+     "name": "submitVerdict",
+     "input": {
+      "outcome": "user_can_fix",
+      "confidence": 0.88,
+      "customerGoal": "Reset the account password.",
+      "summary": "All 3 password-reset emails (mail_0001, mail_0002, mail_0003) were delivered to noah.kim@example.com. Nothing is broken on our side; they are most likely in spam or promotions.",
+      "evidence": [
+       {
+        "id": "mail_0001",
+        "note": "Reset email delivered"
+       },
+       {
+        "id": "mail_0002",
+        "note": "Reset email delivered"
+       },
+       {
+        "id": "mail_0003",
+        "note": "Reset email delivered"
+       }
+      ],
+      "instructionSteps": [
+       "Check the Spam and Promotions folders",
+       "Search the mailbox for \"PawPlan\"",
+       "Add no-reply@pawplan.app to contacts and open the newest reset link"
+      ],
+      "helpArticleId": "help_reset_email",
+      "replyDraft": "Hi Noah, all three reset emails were delivered to your inbox provider, so they most likely landed in Spam or Promotions. Search for \"PawPlan\", and add no-reply@pawplan.app to your contacts before requesting a new link."
+     }
+    }
+   ]
+  }
+ ]
+}

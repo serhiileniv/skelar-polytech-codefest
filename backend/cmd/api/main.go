@@ -11,9 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/serhiileniv/skelar-polytech-codefest/backend/internal/adapter/llm"
 	"github.com/serhiileniv/skelar-polytech-codefest/backend/internal/config"
 	httpctl "github.com/serhiileniv/skelar-polytech-codefest/backend/internal/controller/http"
 	"github.com/serhiileniv/skelar-polytech-codefest/backend/internal/repo/postgres"
+	"github.com/serhiileniv/skelar-polytech-codefest/backend/internal/usecase"
 	"github.com/serhiileniv/skelar-polytech-codefest/backend/migrations"
 )
 
@@ -44,16 +46,36 @@ func run() error {
 		return err
 	}
 
+	// Wiring: repos → use cases → controllers.
+	now := func() time.Time { return time.Now().UTC() }
+	repo := postgres.NewCaseRepo(pool)
+	model := llm.NewRouter(llm.Config{
+		APIKey: cfg.AnthropicAPIKey, Model: cfg.AnthropicModel, ReplayDir: cfg.ReplayDir,
+		ForceReplay: cfg.Replay, Record: cfg.Record, ReplayDelay: cfg.ReplayDelay,
+	})
+	handler := httpctl.NewRouter(httpctl.Deps{
+		DB:              pool,
+		Cases:           usecase.NewReadCases(repo, repo),
+		Actions:         usecase.NewExecuteAction(repo, now),
+		Replies:         usecase.NewReplyToCase(repo, repo, now),
+		Investigations:  usecase.NewInvestigateCase(repo, model, now),
+		Metrics:         usecase.NewGetMetrics(repo),
+		Reset:           usecase.NewResetDemo(postgres.NewDemoStore(pool)),
+		FrontendOrigins: cfg.FrontendOrigins,
+		Log:             log,
+	})
+
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpctl.NewRouter(httpctl.Deps{DB: pool, FrontendOrigins: cfg.FrontendOrigins, Log: log}),
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		// No WriteTimeout: the investigate SSE stream is long-lived.
 	}
 
 	errc := make(chan error, 1)
 	go func() {
-		log.Info("api listening", "addr", cfg.HTTPAddr, "frontendOrigins", cfg.FrontendOrigins, "replay", cfg.Replay || cfg.AnthropicAPIKey == "")
+		log.Info("api listening", "addr", cfg.HTTPAddr, "frontendOrigins", cfg.FrontendOrigins,
+			"model", cfg.AnthropicModel, "replay", model.Replaying(), "record", cfg.Record)
 		errc <- srv.ListenAndServe()
 	}()
 

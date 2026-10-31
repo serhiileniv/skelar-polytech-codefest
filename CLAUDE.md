@@ -14,7 +14,7 @@ Source of truth: `docs/brief/brief.md` (host brief). If code and brief disagree,
 
 ## Technical execution (judged)
 
-Stack and layering: `claude-code-prompt.md` §2–3. Step-by-step plan: `docs/execution-plan.md`.
+Stack and layering: `claude-code-prompt.md` §2–3. Plan + track split: `docs/execution-plan.md`. **Backend ↔ frontend contract: `docs/api.md`** — build against it, change it only per its rules.
 
 - Backend: Go, Postgres (`docker-compose`), `pgx/v5` + hand-written SQL, stdlib `net/http`, `log/slog`, `anthropic-sdk-go`. Layers `controller → usecase → repo`, all → `entity`; wiring only in `cmd/api/main.go`.
 - Investigation = **agent loop** (≤ 8 steps, read-only tools scoped to the case's customer, forced `submitVerdict`). Not a single LLM call.

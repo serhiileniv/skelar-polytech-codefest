@@ -1,84 +1,72 @@
 # Execution plan — Verdict on Go + Postgres
 
-Status: draft 2026-10-31 · Kickoff rules: branch `docs/claude-code-prompt` (`claude-code-prompt.md`) · Product: `docs/specs/verdict-backbone.md`
+Status: active 2026-10-31 · Rules: `claude-code-prompt.md` · Product: `docs/specs/verdict-backbone.md` · **Contract: `docs/api.md`**
 
-How to use: do steps in order, tick the box, merge to `main` at the end of every step. `main` must always run the demo.
-Owner: **A** = core (entity, usecase, LLM adapter, policies) · **B** = edges (migrations, repos, controllers, frontend, docker).
+How to use: each track ticks its own boxes and merges to `main` after every step. `main` must always run the demo.
 
-## Blockers — ✅ all proposals accepted 2026-10-31
+## Two tracks, one contract
 
-| # | Conflict | Sources | Proposal |
+| Track | Who | Owns | Folder |
 |---|---|---|---|
-| D1 | ✅ **Decided 2026-10-31: agent loop** (≤ 8 steps, read-only tools, forced `submitVerdict`). Not one LLM call over a pre-built context | team call | — |
-| D2 | Outcomes: 5 vs. 4 (`our_bug · user_misunderstanding · uncertain · suspicious`) | spec vs. `docs/verdict-concept` | 3 verdicts on who fixes it (`user_can_fix · support_can_fix · tech_team`) + 2 guard states (`need_more_info` = where the validator downgrades a bad verdict; `suspicious` = injection, blocks all actions, rule S1). The UI shows 3 + 2 |
-| D3 | Capability 4 (analyze interactions / score support) has no feature in the spec | brief vs. spec | Add Step 10: metrics + eval runner (accuracy over the seeded cases) |
-| D4 | The spec says 6 cases; the seed and `VERDICT.md` have 7 (case_105 "charged twice") | spec vs. `src/lib/domain/seed.ts` | 7. Fix the spec table |
-| D5 | The TS reference code is not on `main` | `feat/verdict-backbone`, `feat/closer-core` | Use `feat/verdict-backbone` as the port reference. Don't merge its TS backend; take only `src/app` + `src/components` into `frontend/` (Step 3) |
-| D6 | Streaming: the UI reads the AI SDK UI-message stream; Go has no AI SDK | `src/components/verdict/investigate-panel.tsx` | Go streams SSE with its own events (`step`, `tool_call`, `tool_result`, `verdict`, `error`). The panel is rewritten to read them |
+| **BE** | friend | Go: entity, usecase, repo, controller, LLM adapter, migrations, seed, docker, Makefile | `backend/` |
+| **FE** | Serhii | Next.js UI, API client, mock client, SSE reader | `frontend/` |
 
-## Phase 0 — Skeleton (A + B together, ~45 min)
+Rules for working async:
+- **The only interface is `docs/api.md`.** FE never reads Go code; BE never reads UI code. A contract change = edit `docs/api.md` + ping (see its change rules).
+- **No shared files.** BE touches `backend/`, FE touches `frontend/`. Shared docs (`docs/`, `CHANGELOG.md`) get one-line edits only, so merges stay trivial.
+- **FE never waits for BE:** it builds on a mock client (`NEXT_PUBLIC_API_MODE=mock`) that returns contract-shaped fixtures and replays a scripted SSE stream. When a BE endpoint lands, FE flips that call to `http`.
+- **BE never waits for FE:** it checks endpoints with `curl` and Go tests that compare JSON with the shapes in `docs/api.md`.
+- **Sync points** (15 min, together): ① now: contract approved · ② after BE Step 5: FE switches reads to real · ③ after BE Step 7: real investigate stream · ④ 15:30: freeze.
+- Branches `feat/be-<thing>` / `feat/fe-<thing>`, merged to `main` at least every ~45 min.
 
-- [x] **Step 1 · Rules (A).** Update `CLAUDE.md` + `docs/decisions.md` to Go/Postgres/pgx/`net/http`/slog/`anthropic-sdk-go`/`go test`; record D1–D6. Merge `docs/claude-code-prompt` into `main`.
-  DoD: no doc still says Next API routes / Vitest / zod are the backend rules.
-- [ ] **Step 2 · Contract (A + B).** Commit together:
-  - `backend/internal/entity/*.go` — types only: Customer, Subscription, Payment, Entitlement, Event, ErrorLog, Email, HelpArticle, Case, Message, Verdict, Evidence, SupportAction, TechIssue, AuditEntry, Outcome, Signature.
-  - `backend/migrations/0001_init.sql` — one table per entity; `audit_log`; `verdicts` (jsonb payload + outcome column).
-  - `docs/api.md` — endpoints below, SSE event shapes, error shape `{code, message}`.
-  DoD: both devs approve; any later change gets announced to the other person.
-- [ ] **Step 3 · Skeleton (B).** `backend/` layout, `go.mod`, `docker-compose.yml` (postgres:17), migration runner on startup, `GET /health`, `Makefile` (`up migrate seed run test lint`), `.env.example`. Move the Next UI to `frontend/`, pointed at `NEXT_PUBLIC_API_URL`.
-  DoD: `make up && make run` → `GET /health` = `{"status":"ok"}`; the frontend loads.
+## Decisions (accepted 2026-10-31)
 
-### API (from `src/lib/api-contract.ts`)
+D1 agent loop (≤ 8 steps, read-only tools, forced `submitVerdict`) · D2 3 verdicts + 2 guard states · D3 metrics + eval for capability 4 · D4 7 seeded cases · D5 `feat/verdict-backbone` is the port reference (UI → `frontend/`, TS backend is reference only) · D6 SSE from Go (`docs/api.md`).
 
-| Method | Path | Usecase |
-|---|---|---|
-| GET | `/api/cases` | ListCases |
-| GET | `/api/cases/{id}` | GetCase (case + customer + billing + entitlements + audit) |
-| POST | `/api/cases/{id}/investigate` | InvestigateCase (SSE) |
-| POST | `/api/cases/{id}/actions` | ExecuteAction (`support_action` · `send_to_tech` · `mark_resolved`) |
-| POST | `/api/cases/{id}/reply` | ReplyToCase |
-| GET | `/api/board` | ListTechIssues |
-| GET | `/api/metrics` | GetMetrics (Step 9) |
-| DELETE | `/api/state` | ResetDemo (re-seed) |
+## Step 0 — together
 
-## Phase 1 — Data
+- [x] Rules in `CLAUDE.md` + `docs/decisions.md`; kickoff prompt merged.
+- [ ] **Contract v1 approved** — both read `docs/api.md` and agree (sync ①).
 
-- [ ] **Step 4 · Seed (B).** `0002_seed.sql` (or `make seed` from a Go generator), ported from `seed.ts` with **the same ids**: ~90 customers, 7 cases, 37 `cancel_not_synced` customers + look-alikes, help articles.
-  DoD: the counts in `seed.test.ts` hold in SQL (`count(*)` checks in a Go test).
-- [ ] **Step 5 · Repos + read endpoints (B; A writes usecases against in-memory fakes).** `repo/postgres` for cases, customers, billing, entitlements, events, errors, emails, help, tech issues, audit. Usecases ListCases, GetCase, ListTechIssues. Port `detectors.go` (`findBySignature`) to entity/usecase with a test.
-  DoD: the inbox and board show Postgres data; every query is scoped by the id from the URL.
+## BE track (Go)
 
-## Phase 2 — Core flow (the demo)
+- [ ] **BE1 · Skeleton.** `backend/` layout, `go.mod`, `docker-compose.yml` (postgres:17), migration runner on startup, `GET /health`, CORS from `FRONTEND_ORIGIN`, error mapping to `ApiError`, `Makefile` (`up migrate seed run test lint eval`), `.env.example`.
+  DoD: `make up && make run` → `curl :8080/health` = `{"status":"ok"}`.
+- [ ] **BE2 · Entities + schema.** `internal/entity/*.go` (types from `docs/api.md` + Event, ErrorLog, Email, HelpArticle), `0001_init.sql` (one table per entity, `audit_log`, `verdicts` as jsonb + outcome column).
+- [ ] **BE3 · Seed.** Port `seed.ts` with **the same ids**: ~90 customers, 7 cases, 37 `cancel_not_synced` customers + look-alikes, help articles.
+  DoD: the counts in `seed.test.ts` hold (Go test with `count(*)`).
+- [ ] **BE4 · Rules.** Port + table tests: `validateVerdict`, policy gate (A1, R1, P1, P2, P3, S1), board merge, `findBySignature`.
+  DoD: every case from `validate.test.ts`, `gate.test.ts`, `board.test.ts` passes in Go.
+- [ ] **BE5 · Read endpoints.** Repos + usecases for `GET /api/cases`, `/api/cases/{id}`, `/api/board`, `DELETE /api/state`. Queries scoped by the id from the URL. → **sync ②**
+- [ ] **BE6 · Actions + reply.** `execute_action.go`: gate → one SQL transaction → audit; blocked attempts are audited too. `POST …/actions`, `POST …/reply`.
+  DoD: case_104 → one card with 38 customers; case_107 refund → `blocked`/`S1` (test).
+- [ ] **BE7 · Investigate (agent loop).** `investigate_case.go`: ≤ 8 steps, 9 read-only tools bound to the case's customer, last step forces `submitVerdict`, `seenIds` → validator → save + audit; SSE events exactly as in `docs/api.md`. `adapter/llm` wraps `anthropic-sdk-go` (verify with `go doc`). Port the prompt; escape customer text into `<chat>`. Fake-LLM tests: tool scoping, forced verdict, invented evidence → downgrade. → **sync ③**
+  DoD: `curl -N -X POST :8080/api/cases/case_103/investigate` streams to `support_can_fix`.
+- [ ] **BE8 · Replay.** Record Messages API responses per case to `backend/replay/<caseId>.json`; replay when there is no key or `VERDICT_REPLAY=1`. Tools still hit the DB. Commit recordings for all 7 cases.
+- [ ] **BE9 · Metrics + eval.** `GET /api/metrics`; `make eval` runs the 7 cases and stores accuracy.
 
-- [ ] **Step 6 · Entity rules (A).** Port + table tests: `validateVerdict` (unseen evidence → downgrade, outcome/evidence consistency, `suspicious` carries no action), policy gate `evaluate` (A1, R1, P1, P2, P3, S1), board merge by signature.
-  DoD: the TS cases from `validate.test.ts`, `gate.test.ts`, `board.test.ts` all exist in Go and pass.
-- [ ] **Step 7 · Investigate (A).** `usecase/investigate_case.go`: loop ≤ 8 steps, 9 read-only tools bound to the case's customer (the model never passes a customer id), the last step forces `submitVerdict`, `seenIds` → validator → save + audit. `adapter/llm` wraps `anthropic-sdk-go` (check the API with `go doc` after `go get`). Port the prompt; escape customer text into `<chat>`.
-  Test with a fake LLM: tool scoping, forced verdict, invented evidence → downgrade.
-  DoD: live run on case_103 reaches `support_can_fix` in the UI via SSE.
-- [ ] **Step 8 · Frontend wiring (B).** The investigate panel reads the SSE events (D6); the trace shows each tool call; the verdict card renders all 5 outcomes.
-  DoD: the case_103 demo works end-to-end in the browser.
+## FE track (Next.js)
 
-## Phase 3 — Actions, audit, all scenarios
+- [ ] **FE1 · Move UI.** Copy `src/app` + `src/components` from `feat/verdict-backbone` into `frontend/`; drop `src/lib` (TS backend) and `src/app/api`.
+- [ ] **FE2 · Typed client.** `frontend/src/api/types.ts` = the types from `docs/api.md` verbatim. `ApiClient` interface with two implementations: `http` (`NEXT_PUBLIC_API_URL`) and `mock`. Switch with `NEXT_PUBLIC_API_MODE`.
+- [ ] **FE3 · Mock data.** Fixtures for the 7 demo cases (`frontend/src/api/mock/`), a board card for `cancel_not_synced`, metrics. The mock applies actions in memory (restore → `executed`, case_107 → `blocked`/`S1`).
+- [ ] **FE4 · Inbox + board on the client.** Case list, chat, customer card, reply box, tech board — all through `ApiClient`, toasts from `ApiError.message`.
+- [ ] **FE5 · Investigate panel on SSE.** `fetch` + SSE parser; trace row per `tool_call`/`tool_result`; verdict card for all 5 outcomes (3 verdicts + 2 guard states, `downgraded` notice, replay badge). The mock replays a scripted stream per case with delays.
+- [ ] **FE6 · Action buttons.** Restore / refund / send to tech / resolve → `ActionResult` toast; the reply box is prefilled from `verdict.replyDraft`.
+- [ ] **FE7 · Metrics strip.** Outcome mix, kept from tech, downgrades, eval accuracy.
+- [ ] **FE8 · Switch to real.** After sync ② reads go `http`; after sync ③ investigate goes `http`. Mock stays as a fallback.
 
-- [ ] **Step 9 · Actions (A usecase, B controller).** `usecase/execute_action.go`: gate → execute in one SQL transaction → audit. Restore access, refund duplicate, send to tech (merge card, count customers with the detector), mark resolved. Every blocked attempt is audited.
-  DoD: case_104 → one board card with 38 customers; case_107 "refund $500" is blocked (S1/P2) with a test.
-- [ ] **Step 10 · Capability 4: metrics (A usecase, B UI strip)** — only if D3 is accepted. `GET /api/metrics` from `verdicts` + `audit_log`: outcome mix, cases kept away from engineers, downgrade rate, avg steps. `make eval` runs all 7 cases and prints accuracy vs. the expected outcomes.
-  DoD: the number shows in the UI and fits on a slide.
-- [ ] **Step 11 · All scenarios.** Run all 7 cases live.
-  DoD: every row of the spec table reaches its expected outcome.
+## Freeze (both, from 15:30)
 
-## Phase 4 — Freeze (stop features ~15:30)
+- [ ] **F1 · All scenarios.** Run all 7 cases against the real backend; each reaches its expected outcome (`docs/api.md` → Demo cases).
+- [ ] **F2 · Release.** README: clone → `make up seed run` + `cd frontend && pnpm dev`. Delete leftover TS backend. `go vet ./... && go test ./...` + frontend lint/typecheck green.
+  DoD: fresh clone + README = working demo without an API key (replay).
+- [ ] **F3 · Deliverables (by 16:30).** Video (103 restore → 104 board → 107 blocked → metrics), deck ≤ 10 slides, GitHub ZIP into the team folder, all links public.
 
-- [ ] **Step 12 · Replay (A).** `adapter/llm` records each Messages API response per case to `backend/replay/<caseId>.json`; with no key (or `VERDICT_REPLAY=1`) it replays them. Tools still run against the DB, so `seenIds`, validation and audit stay real. Commit recordings for all 7 cases.
-  DoD: all 7 cases work with `ANTHROPIC_API_KEY` unset.
-- [ ] **Step 13 · Release (B).** README: clone → `make up seed run` + frontend start. Delete the TS backend (`src/lib`, `src/app/api`). Final `go vet ./... && go test ./...` + frontend lint/typecheck.
-  DoD: a fresh clone + README steps = a working demo without a key.
-- [ ] **Step 14 · Deliverables (both, by 16:30).** Record the video demo (cases 103 → 104 board → 107 blocked → metrics), deck ≤ 10 slides, GitHub ZIP into the team folder, all links public.
-
-## Stretch (only after Step 13 is green)
+## Stretch (only after F2 is green)
 
 - [ ] **S1 · Fix-it agent for `user_can_fix`.** A second agent calls our product's MCP to perform the customer's fix (e.g. cancel the App Store subscription), instead of only sending instructions. Write tools pass the same policy gate + a human click; every call is audited.
 
 ## Cut order if late
 
-Step 10 eval runner → Step 10 metrics UI → live mode (demo on replay only) → `mark_resolved`/reply. Never cut: the validator, the gate, case_103/104/107.
+`make eval` → metrics strip → live mode (demo on replay only) → reply/resolve. Never cut: the validator, the gate, case_103/104/107.

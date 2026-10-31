@@ -128,7 +128,7 @@ export function Inbox() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 bg-white">
+    <div className="bg-canvas flex min-h-0 flex-1 gap-2 p-2">
       <CaseList
         cases={cases}
         selectedId={selectedId}
@@ -137,7 +137,11 @@ export function Inbox() {
       {loadError && !cases ? (
         <Empty>Could not load cases ({loadError}).</Empty>
       ) : !current ? (
-        <Empty>{selectedId ? "Loading case…" : "Select a conversation."}</Empty>
+        <Empty>
+          {selectedId
+            ? "Loading case…"
+            : "Pick a conversation on the left to get started."}
+        </Empty>
       ) : (
         <>
           <ChatThread
@@ -151,7 +155,7 @@ export function Inbox() {
             onDraftChange={setDraft}
             onSend={send}
           />
-          <aside className="flex min-h-0 w-[440px] shrink-0 flex-col overflow-y-auto border-l border-zinc-200 bg-white">
+          <aside className="bg-copilot border-t-copilot-line flex min-h-0 w-[440px] shrink-0 flex-col overflow-y-auto rounded-lg border border-t-2 border-zinc-200">
             <InvestigatePanel
               key={current.case.id}
               caseId={current.case.id}
@@ -170,7 +174,7 @@ export function Inbox() {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-1 items-center justify-center bg-white text-[13px] text-zinc-500">
+    <div className="flex flex-1 items-center justify-center rounded-lg border border-zinc-200 bg-white text-[13px] text-zinc-500">
       {children}
     </div>
   );

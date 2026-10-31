@@ -71,6 +71,10 @@
   --color-indigo-700: #4d58bd;
   --color-indigo-800: #3f489a;
   --color-indigo-900: #343b7a;
+  /* Surfaces: tinted canvas behind white panes; the copilot pane carries a faint accent wash. */
+  --color-canvas: #f0f0f5;
+  --color-copilot: #f6f7fd;
+  --color-copilot-line: #5e6ad2;
 }
 
 :root {
@@ -91,7 +95,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: #5e6ad2;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -147,7 +151,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply text-foreground bg-zinc-50;
+    @apply text-foreground bg-canvas;
     font-feature-settings: "cv11";
   }
   html {

@@ -46,11 +46,11 @@ export function MetricsStrip() {
         <span className="text-[12px] whitespace-nowrap text-zinc-500">
           Outcome mix
         </span>
-        <div className="flex h-1.5 w-32 shrink-0 gap-px overflow-hidden rounded-full bg-zinc-100">
+        <div className="flex h-2 w-36 shrink-0 gap-0.5 overflow-hidden rounded-full bg-zinc-100">
           {v.mix.map((s) => (
             <span
               key={s.outcome}
-              className={OUTCOME_META[s.outcome].dot}
+              className={cn("rounded-full", OUTCOME_META[s.outcome].dot)}
               style={{ width: `${s.pct}%` }}
               title={`${OUTCOME_META[s.outcome].label}: ${s.count}`}
             />
@@ -119,7 +119,7 @@ function Stat({
       </span>
       <span
         className={cn(
-          "text-[15px] font-semibold whitespace-nowrap tabular-nums",
+          "text-[15px] font-semibold tracking-[-0.01em] whitespace-nowrap tabular-nums",
           value === DASH ? "text-zinc-400" : "text-zinc-900",
         )}
       >

@@ -1,6 +1,7 @@
 import type { CaseDetail } from "@/api";
 import { cn } from "@/lib/utils";
 
+import { Avatar } from "./avatar";
 import { HIGHLIGHT_CLASS, useEvidenceTarget } from "./evidence-focus";
 import { IdChip } from "./outcome-badge";
 import { formatDate } from "./time";
@@ -16,13 +17,11 @@ export function CustomerCard({ detail }: CustomerCardProps) {
     subscriptions.find((s) => s.status === "active") ?? subscriptions[0];
 
   return (
-    <div className="border-t border-zinc-200 p-4">
+    <div className="border-t border-zinc-200 bg-white p-4">
       <div className="space-y-4">
         <div className="flex items-start gap-3">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-medium text-zinc-600 ring-1 ring-zinc-200">
-            {initials(customer.name)}
-          </div>
-          <div className="min-w-0">
+          <Avatar id={customer.id} name={customer.name} size={40} />
+          <div className="min-w-0 self-center">
             <div className="truncate text-[13px] leading-5 font-semibold text-zinc-900">
               {customer.name}
             </div>
@@ -99,15 +98,6 @@ export function CustomerCard({ detail }: CustomerCardProps) {
       </div>
     </div>
   );
-}
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .map((w) => w[0] ?? "")
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 }
 
 function Fact({

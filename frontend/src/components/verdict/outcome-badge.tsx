@@ -13,8 +13,9 @@ export function OutcomeBadge({ outcome, className }: OutcomeBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-[12px] leading-4 font-medium whitespace-nowrap",
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] leading-4 font-medium whitespace-nowrap",
         meta.text,
+        meta.tint,
         className,
       )}
     >

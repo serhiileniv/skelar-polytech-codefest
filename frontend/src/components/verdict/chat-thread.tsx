@@ -6,6 +6,7 @@ import { Send } from "lucide-react";
 import type { CaseDetail } from "@/api";
 import { cn } from "@/lib/utils";
 
+import { Avatar, SupportAvatar } from "./avatar";
 import { useEvidenceFocus } from "./evidence-focus";
 import { StatusDot } from "./outcome-badge";
 import { formatTime } from "./time";
@@ -61,9 +62,10 @@ export function ChatThread({
   }
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white">
       <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-zinc-200 px-4">
-        <div className="flex min-w-0 items-baseline gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Avatar id={customer.id} name={customer.name} size={28} />
           <h1 className="truncate text-[15px] leading-5 font-semibold tracking-[-0.01em] text-zinc-900">
             {c.subject}
           </h1>
@@ -81,7 +83,7 @@ export function ChatThread({
 
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-6 py-5"
+        className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-white px-6 py-5"
       >
         {c.messages.map((m) => {
           const mine = m.from === "support";
@@ -89,34 +91,47 @@ export function ChatThread({
             <div
               key={m.id}
               className={cn(
-                "flex flex-col gap-1.5",
-                mine ? "items-end" : "items-start",
+                "flex items-start gap-2.5",
+                mine && "flex-row-reverse",
               )}
             >
-              <span className="px-1 text-[12px] leading-4 text-zinc-500 tabular-nums">
-                <span className="font-medium text-zinc-700">
-                  {mine ? "Support" : customer.name}
-                </span>{" "}
-                · {formatTime(m.at)}
-              </span>
+              {mine ? (
+                <SupportAvatar size={28} />
+              ) : (
+                <Avatar id={customer.id} name={customer.name} size={28} />
+              )}
               <div
-                data-evidence={m.id}
                 className={cn(
-                  "max-w-[64ch] rounded-lg border px-3.5 py-2.5 text-[14px] leading-[22px] whitespace-pre-wrap text-zinc-900 transition-shadow duration-200 motion-reduce:transition-none",
-                  focusedId === m.id && "ring-2 ring-indigo-300 ring-offset-2",
-                  mine
-                    ? "border-indigo-100 bg-indigo-50"
-                    : "border-zinc-200 bg-white",
+                  "flex min-w-0 flex-col gap-1.5",
+                  mine ? "items-end" : "items-start",
                 )}
               >
-                {m.body}
+                <span className="px-1 text-[12px] leading-4 text-zinc-500 tabular-nums">
+                  <span className="font-medium text-zinc-700">
+                    {mine ? "Support" : customer.name}
+                  </span>{" "}
+                  · {formatTime(m.at)}
+                </span>
+                <div
+                  data-evidence={m.id}
+                  className={cn(
+                    "max-w-[64ch] rounded-lg border px-3.5 py-2.5 text-[14px] leading-[22px] whitespace-pre-wrap text-zinc-900 transition-shadow duration-200 motion-reduce:transition-none",
+                    focusedId === m.id &&
+                      "ring-2 ring-indigo-300 ring-offset-2",
+                    mine
+                      ? "border-indigo-100 bg-indigo-50"
+                      : "border-zinc-200 bg-white shadow-[0_1px_0_rgb(0_0_0/0.02)]",
+                  )}
+                >
+                  {m.body}
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="shrink-0 border-t border-zinc-200 bg-white p-4">
+      <div className="shrink-0 border-t border-zinc-200 bg-zinc-50/60 p-4">
         {proposal && (
           <SuggestedReplyCard
             proposal={proposal}

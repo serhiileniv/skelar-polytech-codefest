@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { api, errorMessage } from "@/api";
 
+import { VerdictMark } from "./avatar";
 import { GhostButton } from "./controls";
 
 const POLL_MS = 3000;
@@ -83,9 +84,10 @@ export function TopBar() {
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-6 border-b border-zinc-200 bg-white px-4">
-      <span className="text-[14px] font-semibold tracking-[-0.01em] text-zinc-900">
+      <span className="inline-flex items-center gap-2 text-[14px] font-semibold tracking-[-0.01em] text-zinc-900">
+        <VerdictMark />
         Verdict
-        <span className="ml-2 text-[12px] font-normal tracking-normal text-zinc-500">
+        <span className="text-[12px] font-normal tracking-normal text-zinc-500">
           Support copilot
         </span>
       </span>
@@ -100,13 +102,15 @@ export function TopBar() {
               className={cn(
                 "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none motion-reduce:transition-none",
                 active
-                  ? "bg-zinc-100 text-zinc-900"
-                  : "text-zinc-500 hover:text-zinc-900",
+                  ? "bg-indigo-50 text-indigo-700"
+                  : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900",
               )}
             >
               {item.label}
               {item.badge !== null && (
-                <span className="text-zinc-500 tabular-nums">{item.badge}</span>
+                <span className="rounded-full bg-[#b4532a]/10 px-1.5 text-[11px] leading-4 text-[#b4532a] tabular-nums">
+                  {item.badge}
+                </span>
               )}
             </Link>
           );

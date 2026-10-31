@@ -7,6 +7,7 @@ import { api, errorMessage, type CaseStatus, type Verdict } from "@/api";
 import { cn } from "@/lib/utils";
 
 import { AskVerdict } from "./ask-verdict";
+import { VerdictMark } from "./avatar";
 import { ConversationSteps, Proposal, VerdictBubble } from "./conversation";
 import { GhostButton, SecondaryButton } from "./controls";
 import { INITIAL_TRACE, traceReducer } from "./investigate-trace";
@@ -129,7 +130,8 @@ export function InvestigatePanel({
   return (
     <div className="flex flex-col">
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-200 px-4">
-        <h2 className="text-[13px] leading-[18px] font-semibold text-zinc-900">
+        <h2 className="flex items-center gap-2 text-[13px] leading-[18px] font-semibold text-zinc-900">
+          <VerdictMark />
           Copilot
         </h2>
         {verdict && !running && !waiting && !confirmRerun && (
@@ -160,7 +162,11 @@ export function InvestigatePanel({
         )}
 
         {idle && (
-          <div className="space-y-1.5">
+          <div className="space-y-2.5 rounded-lg border border-dashed border-indigo-200 bg-white/70 p-4">
+            <p className="text-[13px] leading-5 text-zinc-700">
+              Ready when you are. I&apos;ll read the account and tell you who
+              can fix this.
+            </p>
             <SecondaryButton onClick={() => void investigate()}>
               Investigate
             </SecondaryButton>

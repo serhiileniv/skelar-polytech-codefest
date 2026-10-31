@@ -1,6 +1,7 @@
 import type { CaseListItem } from "@/api";
 import { cn } from "@/lib/utils";
 
+import { Avatar } from "./avatar";
 import { OutcomeBadge, StatusDot } from "./outcome-badge";
 import { formatTime } from "./time";
 
@@ -12,7 +13,7 @@ interface CaseListProps {
 
 export function CaseList({ cases, selectedId, onSelect }: CaseListProps) {
   return (
-    <aside className="flex min-h-0 w-[300px] shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white">
+    <aside className="flex min-h-0 w-[300px] shrink-0 flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white">
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-200 px-4">
         <h2 className="text-[13px] leading-[18px] font-semibold text-zinc-900">
           Inbox
@@ -55,11 +56,13 @@ function CaseRow({ item: c, selected, onSelect }: CaseRowProps) {
       onClick={() => onSelect(c.id)}
       aria-current={selected || undefined}
       className={cn(
-        "flex w-full gap-3 rounded-md px-3 py-2.5 text-left transition-colors duration-100 motion-reduce:transition-none",
-        selected ? "bg-zinc-100" : "hover:bg-zinc-50",
+        "relative flex w-full gap-3 rounded-md px-3 py-2.5 text-left transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none motion-reduce:transition-none",
+        selected
+          ? "bg-indigo-50/70 before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-indigo-600"
+          : "hover:bg-zinc-50",
       )}
     >
-      <Avatar name={c.customerName} />
+      <Avatar name={c.customerName} size={32} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-baseline justify-between gap-2">
           <span className="truncate text-[13px] font-semibold text-zinc-900">
@@ -79,22 +82,5 @@ function CaseRow({ item: c, selected, onSelect }: CaseRowProps) {
         </div>
       </div>
     </button>
-  );
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const letters = parts.length > 1 ? [parts[0], parts.at(-1)] : parts;
-  return letters.map((p) => p?.[0]?.toUpperCase() ?? "").join("") || "?";
-}
-
-function Avatar({ name }: { name: string }) {
-  return (
-    <span
-      aria-hidden
-      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-medium text-zinc-600 ring-1 ring-zinc-200"
-    >
-      {initials(name)}
-    </span>
   );
 }

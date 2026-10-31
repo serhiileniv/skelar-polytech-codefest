@@ -16,6 +16,7 @@ import {
   useEvidenceFocus,
   useEvidenceTarget,
 } from "./evidence-focus";
+import { VerdictMark } from "./avatar";
 import { IdChip } from "./outcome-badge";
 import type { TraceState } from "./investigate-trace";
 import { IdChips, TraceHeader } from "./trace";
@@ -39,11 +40,14 @@ export function AgentBubble({
   ...rest
 }: React.ComponentProps<"div">) {
   return (
-    <div className="copilot-bubble-in flex justify-start">
+    <div className="copilot-bubble-in flex items-start justify-start gap-2">
+      <span className="mt-1.5">
+        <VerdictMark size={16} />
+      </span>
       <div
         {...rest}
         className={cn(
-          "max-w-[94%] min-w-0 rounded-lg bg-zinc-100 px-3 py-2 text-[13px] leading-5 text-zinc-800",
+          "max-w-[90%] min-w-0 rounded-lg bg-zinc-100/80 px-3 py-2 text-[13px] leading-5 text-zinc-800",
           className,
         )}
       >

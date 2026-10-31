@@ -6,7 +6,7 @@ interface OutcomeMeta {
   text: string;
   /** Same colour as a solid fill: the outcome dot and the mix bar. */
   dot: string;
-  /** Pale background; only the verdict header uses it. */
+  /** Same colour at ~10% alpha: badge pill and verdict header backgrounds. */
   tint: string;
 }
 
@@ -16,31 +16,31 @@ export const OUTCOME_META: Record<Outcome, OutcomeMeta> = {
     label: "Customer can fix it",
     text: "text-[#2f7d55]",
     dot: "bg-[#2f7d55]",
-    tint: "bg-[#eef6f1]",
+    tint: "bg-[#2f7d55]/10",
   },
   support_can_fix: {
     label: "Support can fix it",
     text: "text-[#1f7a80]",
     dot: "bg-[#1f7a80]",
-    tint: "bg-[#ecf5f5]",
+    tint: "bg-[#1f7a80]/10",
   },
   tech_team: {
     label: "Tech team",
     text: "text-[#b4532a]",
     dot: "bg-[#b4532a]",
-    tint: "bg-[#fbf0ea]",
+    tint: "bg-[#b4532a]/10",
   },
   need_more_info: {
     label: "Need more info",
     text: "text-[#6b6f76]",
     dot: "bg-[#6b6f76]",
-    tint: "bg-[#f1f1f3]",
+    tint: "bg-[#6b6f76]/10",
   },
   suspicious: {
     label: "Suspicious — blocked",
     text: "text-[#b42318]",
     dot: "bg-[#b42318]",
-    tint: "bg-[#fdf0ef]",
+    tint: "bg-[#b42318]/10",
   },
 };
 

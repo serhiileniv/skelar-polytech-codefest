@@ -25,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-zinc-50 font-sans">
+      <body className="bg-canvas flex min-h-full flex-col font-sans">
         {children}
         <Toaster position="bottom-right" />
       </body>

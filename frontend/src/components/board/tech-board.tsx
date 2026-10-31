@@ -53,7 +53,7 @@ export function TechBoard() {
         );
 
   return (
-    <main className="min-h-0 flex-1 overflow-auto bg-zinc-50 p-6">
+    <main className="bg-canvas min-h-0 flex-1 overflow-auto p-6">
       <header className="mb-5">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-[15px] leading-5 font-semibold tracking-[-0.01em] text-zinc-900">
@@ -73,7 +73,10 @@ export function TechBoard() {
       </header>
 
       {issues !== null && issues.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-16 text-center text-[13px] text-zinc-500">
+        <div className="mx-auto flex max-w-md flex-col items-center gap-2 rounded-lg border border-zinc-200 bg-white px-6 py-12 text-center text-[13px] text-zinc-500">
+          <span className="text-[14px] font-medium text-zinc-900">
+            All quiet on the tech side
+          </span>
           No tech issues yet — investigate case_104 and send it to tech
           <Link
             href="/?case=case_104"
@@ -100,7 +103,9 @@ export function TechBoard() {
                   <p className="text-[12px] text-zinc-400">Loading…</p>
                 )}
                 {issues !== null && items.length === 0 && (
-                  <p className="text-[12px] text-zinc-400">None</p>
+                  <p className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-center text-[12px] text-zinc-400">
+                    Nothing here yet
+                  </p>
                 )}
                 {items.map((issue) => (
                   <IssueCard key={issue.id} issue={issue} />
@@ -119,9 +124,9 @@ function IssueCard({ issue }: { issue: TechIssue }) {
   const shown = issue.affectedCustomerIds.slice(0, SHOWN_CUSTOMERS);
   const more = affected - shown.length;
   return (
-    <article className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white [&>*]:px-4 [&>*]:py-3">
+    <article className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgb(16_17_20/0.04)] transition-colors duration-100 hover:border-zinc-300 motion-reduce:transition-none [&>*]:px-4 [&>*]:py-3">
       <div className="flex items-baseline gap-2">
-        <span className="text-[32px] leading-9 font-semibold tracking-[-0.02em] text-zinc-900 tabular-nums">
+        <span className="text-[32px] leading-9 font-semibold tracking-[-0.02em] text-[#b4532a] tabular-nums">
           {affected}
         </span>
         <span className="text-[12px] text-zinc-500">

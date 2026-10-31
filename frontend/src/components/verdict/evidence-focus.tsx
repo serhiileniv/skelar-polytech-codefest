@@ -42,9 +42,11 @@ export function EvidenceFocusProvider({
     setFocusedId(id);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setFocusedId(null), HIGHLIGHT_MS);
-    const target = document.querySelector(
-      `[data-evidence~="${CSS.escape(id)}"]`,
-    );
+    const sel = `[data-evidence~="${CSS.escape(id)}"]`;
+    // Prefer the record itself over a trace row that merely mentions it.
+    const target =
+      document.querySelector(`${sel}:not([data-evidence-ref])`) ??
+      document.querySelector(sel);
     target?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
 
@@ -67,14 +69,23 @@ export function useEvidenceFocus(): EvidenceFocus {
   return useContext(EvidenceFocusContext);
 }
 
-/** Marks an element as the home of these record ids; `highlighted` is true while one is focused. */
-export function useEvidenceTarget(ids: readonly string[]): {
-  attrs: { "data-evidence": string };
+interface EvidenceTarget {
+  attrs: { "data-evidence": string; "data-evidence-ref"?: "" };
   highlighted: boolean;
-} {
+}
+
+/**
+ * Marks an element as the home of these record ids; `highlighted` is true while one is focused.
+ * `reference: true` (e.g. a trace row) is only scrolled to when no record element has the id.
+ */
+export function useEvidenceTarget(
+  ids: readonly string[],
+  { reference = false }: { reference?: boolean } = {},
+): EvidenceTarget {
   const { focusedId } = useEvidenceFocus();
+  const base = { "data-evidence": ids.join(" ") };
   return {
-    attrs: { "data-evidence": ids.join(" ") },
+    attrs: reference ? { ...base, "data-evidence-ref": "" } : base,
     highlighted: focusedId !== null && ids.includes(focusedId),
   };
 }

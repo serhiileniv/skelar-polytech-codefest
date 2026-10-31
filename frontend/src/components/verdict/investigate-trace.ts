@@ -23,11 +23,16 @@ export interface TraceState {
   replay: boolean;
   error: string | null;
   steps: number;
+  /** Step budget announced by `start`. */
+  maxSteps: number;
   /** True once any event arrived for the current run. */
   started: boolean;
 }
 
 export type TraceAction = InvestigateEvent | { event: "reset" };
+
+/** Fallback budget until `start` arrives; matches the backend loop cap. */
+const DEFAULT_MAX_STEPS = 8;
 
 export const INITIAL_TRACE: TraceState = {
   items: [],
@@ -35,6 +40,7 @@ export const INITIAL_TRACE: TraceState = {
   replay: false,
   error: null,
   steps: 0,
+  maxSteps: DEFAULT_MAX_STEPS,
   started: false,
 };
 
@@ -46,7 +52,11 @@ export function traceReducer(
   const s = { ...state, started: true };
   switch (action.event) {
     case "start":
-      return { ...s, replay: action.data.replay };
+      return {
+        ...s,
+        replay: action.data.replay,
+        maxSteps: action.data.maxSteps || DEFAULT_MAX_STEPS,
+      };
     case "step":
       return { ...s, steps: action.data.n };
     case "text": {
@@ -105,4 +115,31 @@ export function traceReducer(
     case "done":
       return s;
   }
+}
+
+type ToolItem = Extract<TraceItem, { kind: "tool" }>;
+
+/** One timeline node: the agent's thought (if any) and the tool it then called (if any yet). */
+export interface TraceNode {
+  key: string;
+  thought?: string;
+  tool?: ToolItem;
+}
+
+/** Pairs each thought with the next tool call; a trailing thought becomes its own node. */
+export function groupSteps(items: readonly TraceItem[]): TraceNode[] {
+  const nodes: TraceNode[] = [];
+  let thought: { key: string; text: string } | null = null;
+  for (const item of items) {
+    if (item.kind === "text") {
+      thought = thought
+        ? { key: thought.key, text: `${thought.text}\n${item.text}` }
+        : { key: item.key, text: item.text };
+      continue;
+    }
+    nodes.push({ key: item.key, thought: thought?.text, tool: item });
+    thought = null;
+  }
+  if (thought) nodes.push({ key: thought.key, thought: thought.text });
+  return nodes;
 }

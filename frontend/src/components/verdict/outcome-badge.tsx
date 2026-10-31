@@ -47,7 +47,7 @@ export function IdChip({ id, onClick }: IdChipProps) {
         title={`Show ${id}`}
         className={cn(
           CHIP_CLASS,
-          "cursor-pointer hover:border-amber-400 hover:bg-amber-50 hover:text-amber-800",
+          "cursor-pointer transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none",
         )}
       >
         {id}

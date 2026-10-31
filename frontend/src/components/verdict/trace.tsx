@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Activity,
   BookOpen,
@@ -8,6 +10,7 @@ import {
   KeyRound,
   LoaderCircle,
   Mail,
+  Sparkle,
   MessageSquare,
   UserRound,
   Users,
@@ -17,7 +20,13 @@ import {
 
 import { cn } from "@/lib/utils";
 
-import { HIGHLIGHT_CLASS, useEvidenceTarget } from "./evidence-focus";
+import {
+  HIGHLIGHT_CLASS,
+  useEvidenceFocus,
+  useEvidenceTarget,
+} from "./evidence-focus";
+import type { TraceNode } from "./investigate-trace";
+import { IdChip } from "./outcome-badge";
 
 interface ToolMeta {
   icon: LucideIcon;
@@ -115,94 +124,144 @@ function plural(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
-export type ToolState =
-  | "input-streaming"
-  | "input-available"
-  | "output-available"
-  | "output-error"
-  | string;
-
-interface ToolRowProps {
-  name: string;
-  state: ToolState;
-  output?: unknown;
-  ids?: string[];
-  errorText?: string;
-}
+/** Chips shown per tool row before collapsing the rest into "+N". */
+const MAX_ID_CHIPS = 4;
 
 const NO_IDS: string[] = [];
 
-export function ToolRow({
-  name,
-  state,
-  output,
-  ids = NO_IDS,
-  errorText,
-}: ToolRowProps) {
-  const { attrs, highlighted } = useEvidenceTarget(ids);
-  const meta = TOOLS[name] ?? {
-    icon: Wrench,
-    running: `Running ${name}`,
-    done: name,
-  };
-  const Icon = meta.icon;
-  const done = state === "output-available";
-  const failed = state === "output-error";
-  const count = done && meta.noun ? countOf(output, meta.keys) : null;
+interface TimelineNodeProps {
+  node: TraceNode;
+  last: boolean;
+}
+
+/** One agent step: muted thought, then the tool it called with the record ids it returned. */
+export function TimelineNode({ node, last }: TimelineNodeProps) {
+  const { tool, thought } = node;
+  const ids =
+    tool && tool.name !== "submitVerdict" ? (tool.ids ?? NO_IDS) : NO_IDS;
+  const { attrs, highlighted } = useEvidenceTarget(ids, { reference: true });
+  const meta = tool ? metaOf(tool.name) : null;
+  const done = tool?.state === "output-available";
+  const failed = tool?.state === "output-error";
+  const running = !!tool && !done && !failed;
+  const count = done && meta?.noun ? countOf(tool.output, meta.keys) : null;
 
   return (
-    <li
-      {...attrs}
-      className={cn(
-        "-mx-1 flex items-center gap-2 px-1 py-1 text-xs",
-        highlighted && HIGHLIGHT_CLASS,
+    <li className="relative flex gap-3">
+      {!last && (
+        <span
+          aria-hidden
+          className="absolute top-7 bottom-0 left-[11px] w-px bg-zinc-200"
+        />
       )}
-    >
-      <span
+      <NodeIcon
+        icon={meta?.icon ?? Sparkle}
+        tone={
+          failed ? "failed" : running ? "running" : tool ? "done" : "thinking"
+        }
+      />
+      <div
+        {...attrs}
         className={cn(
-          "flex size-5 shrink-0 items-center justify-center rounded",
-          failed
-            ? "bg-red-50 text-red-600"
-            : done
-              ? "bg-zinc-100 text-zinc-600"
-              : "bg-indigo-50 text-indigo-600",
+          "-mx-1 min-w-0 flex-1 px-1 pb-3",
+          highlighted && HIGHLIGHT_CLASS,
         )}
       >
-        {failed ? (
-          <CircleAlert className="size-3" />
-        ) : (
-          <Icon className="size-3" />
+        {thought && (
+          <p className="pt-1 text-xs leading-snug whitespace-pre-line text-zinc-500 italic">
+            {thought}
+          </p>
         )}
-      </span>
-      <span
-        className={cn(
-          "truncate",
-          done ? "text-zinc-700" : failed ? "text-red-700" : "text-indigo-700",
+        {tool && meta && (
+          <div
+            className={cn(
+              "flex items-center gap-1.5 pt-1 text-[13px]",
+              thought && "pt-1.5",
+            )}
+          >
+            <span
+              className={cn(
+                "truncate font-medium",
+                failed
+                  ? "text-red-700"
+                  : running
+                    ? "animate-pulse text-indigo-700"
+                    : "text-zinc-800",
+              )}
+            >
+              {failed
+                ? `${meta.done} failed`
+                : done
+                  ? meta.done
+                  : `${meta.running}…`}
+            </span>
+            {count !== null && meta.noun && (
+              <span className="shrink-0 text-xs text-zinc-400">
+                · {plural(count, meta.noun)}
+              </span>
+            )}
+          </div>
         )}
-      >
-        {failed ? `${meta.done} failed` : done ? meta.done : `${meta.running}…`}
-        {count !== null && meta.noun && (
-          <span className="text-zinc-400"> · {plural(count, meta.noun)}</span>
+        {failed && tool?.errorText && (
+          <p className="text-xs text-red-600">{tool.errorText}</p>
         )}
-        {failed && errorText && (
-          <span className="text-red-500/80"> · {errorText}</span>
-        )}
-      </span>
-      {!done && !failed && (
-        <LoaderCircle className="ml-auto size-3 shrink-0 animate-spin text-indigo-400" />
-      )}
+        {done && ids.length > 0 && <IdChips ids={ids} />}
+      </div>
     </li>
   );
 }
 
-interface ThoughtRowProps {
-  text: string;
+function metaOf(name: string): ToolMeta {
+  return (
+    TOOLS[name] ?? { icon: Wrench, running: `Running ${name}`, done: name }
+  );
 }
 
-export function ThoughtRow({ text }: ThoughtRowProps) {
+type NodeTone = "running" | "done" | "failed" | "thinking";
+
+const NODE_TONE: Record<NodeTone, string> = {
+  running: "border-indigo-200 bg-indigo-50 text-indigo-600",
+  done: "border-zinc-200 bg-white text-zinc-500",
+  failed: "border-red-200 bg-red-50 text-red-600",
+  thinking: "border-zinc-200 bg-zinc-50 text-zinc-400",
+};
+
+function NodeIcon({ icon: Icon, tone }: { icon: LucideIcon; tone: NodeTone }) {
   return (
-    <li className="border-l-2 border-zinc-200 py-0.5 pl-2.5 text-xs leading-snug text-zinc-500">
-      {text}
-    </li>
+    <span
+      className={cn(
+        "relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border",
+        NODE_TONE[tone],
+      )}
+    >
+      {tone === "running" ? (
+        <LoaderCircle className="size-3.5 animate-spin" />
+      ) : tone === "failed" ? (
+        <CircleAlert className="size-3.5" />
+      ) : (
+        <Icon className="size-3.5" />
+      )}
+    </span>
+  );
+}
+
+function IdChips({ ids }: { ids: readonly string[] }) {
+  const { focus } = useEvidenceFocus();
+  const shown = ids.slice(0, MAX_ID_CHIPS);
+  const rest = ids.length - shown.length;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1">
+      {shown.map((id) => (
+        <IdChip key={id} id={id} onClick={() => focus(id)} />
+      ))}
+      {rest > 0 && (
+        <span
+          title={ids.slice(MAX_ID_CHIPS).join(", ")}
+          className="text-[10.5px] text-zinc-400 tabular-nums"
+        >
+          +{rest}
+        </span>
+      )}
+    </div>
   );
 }

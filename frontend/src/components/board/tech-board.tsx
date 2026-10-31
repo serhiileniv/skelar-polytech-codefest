@@ -10,6 +10,7 @@ import { IdChip } from "../verdict/outcome-badge";
 import { formatTime } from "../verdict/time";
 
 const POLL_MS = 3000;
+const SHOWN_CUSTOMERS = 5;
 
 const COLUMNS: { status: TechIssue["status"]; label: string; dot: string }[] = [
   { status: "new", label: "New", dot: "bg-indigo-500" },
@@ -42,101 +43,131 @@ export function TechBoard() {
     };
   }, []);
 
+  const totalAffected = (issues ?? []).reduce(
+    (sum, i) => sum + i.affectedCustomerIds.length,
+    0,
+  );
+
   return (
-    <main className="min-h-0 flex-1 overflow-auto p-5">
-      <div className="mb-4 flex items-baseline gap-3">
-        <h1 className="text-base font-semibold tracking-tight">Tech issues</h1>
-        <span className="text-xs text-zinc-500">
-          Merged by root cause · created from Verdict investigations
-        </span>
-        {error && <span className="text-xs text-red-600">{error}</span>}
-      </div>
-      <div className="grid min-w-[900px] grid-cols-3 gap-4">
-        {COLUMNS.map((col) => {
-          const items = issues?.filter((i) => i.status === col.status) ?? [];
-          return (
-            <section key={col.status} className="flex flex-col gap-3">
-              <h2 className="flex items-center gap-2 text-[13px] font-semibold text-zinc-700">
-                <span className={cn("size-2 rounded-full", col.dot)} />
-                {col.label}
-                <span className="text-xs font-normal text-zinc-400 tabular-nums">
-                  {items.length}
-                </span>
-              </h2>
-              {issues === null && (
-                <p className="text-xs text-zinc-400">Loading…</p>
-              )}
-              {issues !== null && items.length === 0 && (
-                <p className="rounded-lg border border-dashed border-zinc-200 p-4 text-center text-xs text-zinc-400">
-                  No issues
-                </p>
-              )}
-              {items.map((issue) => (
-                <IssueCard key={issue.id} issue={issue} />
-              ))}
-            </section>
-          );
-        })}
-      </div>
+    <main className="min-h-0 flex-1 overflow-auto bg-zinc-100/70 p-6">
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-900">
+            Tech issues
+          </h1>
+          <p className="text-[13px] text-zinc-500">
+            Root causes found by Verdict investigations, merged by signature
+          </p>
+          {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+        </div>
+        <div className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-right">
+          <div className="text-xl leading-none font-semibold text-indigo-700 tabular-nums">
+            {totalAffected}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-500">
+            customers affected in total
+          </div>
+        </div>
+      </header>
+
+      {issues !== null && issues.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-10 text-center text-sm text-zinc-500">
+          No tech issues yet — investigate case_104 and send it to tech
+        </div>
+      ) : (
+        <div className="grid min-w-[900px] grid-cols-3 gap-4">
+          {COLUMNS.map((col) => {
+            const items = issues?.filter((i) => i.status === col.status) ?? [];
+            return (
+              <section key={col.status} className="flex flex-col gap-3">
+                <h2 className="flex items-center gap-2 text-[13px] font-semibold text-zinc-700">
+                  <span className={cn("size-2 rounded-full", col.dot)} />
+                  {col.label}
+                  <span className="rounded-full bg-zinc-200/70 px-1.5 text-[11px] font-medium text-zinc-600 tabular-nums">
+                    {items.length}
+                  </span>
+                </h2>
+                {issues === null && (
+                  <p className="text-xs text-zinc-400">Loading…</p>
+                )}
+                {issues !== null && items.length === 0 && (
+                  <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-400">
+                    Nothing here
+                  </p>
+                )}
+                {items.map((issue) => (
+                  <IssueCard key={issue.id} issue={issue} />
+                ))}
+              </section>
+            );
+          })}
+        </div>
+      )}
     </main>
   );
 }
 
-interface IssueCardProps {
-  issue: TechIssue;
-}
-
-function IssueCard({ issue }: IssueCardProps) {
+function IssueCard({ issue }: { issue: TechIssue }) {
   const affected = issue.affectedCustomerIds.length;
+  const shown = issue.affectedCustomerIds.slice(0, SHOWN_CUSTOMERS);
+  const more = affected - shown.length;
   return (
-    <article className="space-y-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[11px] text-zinc-400">
-            {issue.id} · {formatTime(issue.createdAt)}
-          </div>
-          <h3 className="mt-0.5 text-sm leading-snug font-semibold text-zinc-900">
-            {issue.title}
-          </h3>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 rounded-md bg-violet-50 px-3 py-2 text-violet-900">
-        <Users className="size-5 shrink-0 text-violet-500" />
-        <div className="leading-none">
-          <span className="text-2xl font-bold tabular-nums">{affected}</span>
-          <span className="ml-1.5 text-xs font-medium">
-            customer{affected === 1 ? "" : "s"} affected
-          </span>
-        </div>
+    <article className="space-y-3 rounded-lg border border-zinc-200 bg-white p-4">
+      <div className="flex items-end gap-2">
+        <span className="text-5xl leading-none font-bold tracking-tight text-indigo-700 tabular-nums">
+          {affected}
+        </span>
+        <span className="flex items-center gap-1 pb-1 text-xs font-medium text-zinc-500">
+          <Users className="size-3.5" />
+          customer{affected === 1 ? "" : "s"} affected
+        </span>
       </div>
 
       <div>
-        <div className="mb-0.5 text-[10px] font-medium tracking-wide text-zinc-400 uppercase">
-          Root cause
-        </div>
-        <p className="text-[13px] leading-relaxed text-zinc-700">
+        <span className="inline-flex rounded border border-indigo-200 bg-indigo-50 px-1.5 py-px font-mono text-[11px] text-indigo-700">
+          {issue.signature}
+        </span>
+        <h3 className="mt-1.5 text-sm leading-snug font-semibold text-zinc-900">
+          {issue.title}
+        </h3>
+        <p className="mt-1 text-[13px] leading-relaxed text-zinc-600">
           {issue.rootCause}
         </p>
       </div>
 
       <ChipRow label="Linked cases" ids={issue.caseIds} />
+      <ChipRow
+        label="Customers"
+        ids={shown}
+        extra={more > 0 ? `+${more} more` : undefined}
+      />
       <ChipRow label="Evidence" ids={issue.evidenceIds} />
+
+      <div className="border-t border-zinc-100 pt-2 text-[11px] text-zinc-400">
+        {issue.id} · created {formatTime(issue.createdAt)}
+      </div>
     </article>
   );
 }
 
-function ChipRow({ label, ids }: { label: string; ids: string[] }) {
+interface ChipRowProps {
+  label: string;
+  ids: string[];
+  extra?: string;
+}
+
+function ChipRow({ label, ids, extra }: ChipRowProps) {
   if (ids.length === 0) return null;
   return (
     <div>
       <div className="mb-1 text-[10px] font-medium tracking-wide text-zinc-400 uppercase">
-        {label} · {ids.length}
+        {label}
       </div>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         {ids.map((id) => (
           <IdChip key={id} id={id} />
         ))}
+        {extra && <span className="text-[11px] text-zinc-500">{extra}</span>}
       </div>
     </div>
   );

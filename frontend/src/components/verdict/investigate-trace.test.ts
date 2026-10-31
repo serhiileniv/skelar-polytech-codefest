@@ -4,6 +4,7 @@ import type { InvestigateEvent, Verdict } from "@/api";
 
 import {
   INITIAL_TRACE,
+  groupSteps,
   traceReducer,
   type TraceAction,
   type TraceState,
@@ -60,6 +61,17 @@ describe("traceReducer", () => {
     expect(s.replay).toBe(replay);
   });
 
+  it("keeps the step budget from start, defaulting to 8", () => {
+    expect(INITIAL_TRACE.maxSteps).toBe(8);
+    const s = run([
+      {
+        event: "start",
+        data: { caseId: "c", replay: false, model: "m", maxSteps: 6 },
+      },
+    ]);
+    expect(s.maxSteps).toBe(6);
+  });
+
   it("merges text deltas within a step and splits across steps", () => {
     const s = run([step(1), text("Hel"), text("lo"), step(2), text("Bye")]);
     expect(s.items.map((i) => (i.kind === "text" ? i.text : null))).toEqual([
@@ -112,5 +124,29 @@ describe("traceReducer", () => {
     };
     const s = run([call("a"), withIds]);
     expect(s.items[0]).toEqual(expect.objectContaining({ ids: ["err_0001"] }));
+  });
+});
+
+describe("groupSteps", () => {
+  it.each([
+    ["no items", [], []],
+    ["thought then tool", [step(1), text("look"), call("a")], [["look", "a"]]],
+    ["tool without thought", [call("a")], [[undefined, "a"]]],
+    [
+      "trailing thought",
+      [call("a"), step(2), text("done?")],
+      [
+        [undefined, "a"],
+        ["done?", undefined],
+      ],
+    ],
+    [
+      "two thoughts before one tool",
+      [step(1), text("x"), step(2), text("y"), call("a")],
+      [["x\ny", "a"]],
+    ],
+  ] as const)("%s", (_, actions, expected) => {
+    const nodes = groupSteps(run([...actions]).items);
+    expect(nodes.map((n) => [n.thought, n.tool?.key])).toEqual(expected);
   });
 });

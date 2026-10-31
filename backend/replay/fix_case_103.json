@@ -1,0 +1,50 @@
+{
+ "caseId": "fix_case_103",
+ "model": "claude-opus-5-5",
+ "source": "live",
+ "recordedAt": "2026-10-31T12:57:44.866829Z",
+ "turns": [
+  {
+   "text": "I'll check the billing and entitlement records to confirm the problem before queuing anything.",
+   "calls": [
+    {
+     "id": "toolu_01JZWm7RbyZY975JA9r23cS8",
+     "name": "getBilling",
+     "input": {}
+    },
+    {
+     "id": "toolu_01Dbab1KHnriWqWrLffdsLjY",
+     "name": "getEntitlements",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "The records match: pay_0003 succeeded and ent_0003 is inactive, so I'll queue a restore for it.",
+   "calls": [
+    {
+     "id": "toolu_01XqADZuhFxgmnxfP3pveDgf",
+     "name": "restoreAccess",
+     "input": {
+      "entitlementId": "ent_0003",
+      "reason": "Payment pay_0003 ($29.99) succeeded for active sub_0003, but the entitlement grant failed (err_0001 upstream timeout); activate Premium on ent_0003."
+     }
+    }
+   ]
+  },
+  {
+   "text": "The preview says the restore would run, so I'll submit the plan.",
+   "calls": [
+    {
+     "id": "toolu_01YUXBHeBriUxtwqRRxnXksz",
+     "name": "submitFixPlan",
+     "input": {
+      "problem": "Web payment pay_0003 ($29.99) succeeded and sub_0003 is active, but the entitlement grant failed (err_0001, upstream timeout), so ent_0003 is still inactive with no payment linked.",
+      "summary": "Restore access on ent_0003, backed by pay_0003, so Premium unlocks (gate R1 preview: would be executed).",
+      "replyBody": "Hi Sofia,\n\nThanks for your patience, and sorry about this. Your $29.99 payment went through and your monthly Premium subscription is active. A temporary glitch on our side stopped Premium from being switched on for your account after you paid.\n\nWe've set up the fix to turn on Premium for your account using that payment. A support team member will approve it shortly. Once it's done, your lessons will unlock. If they still look locked, try signing out and back in or refreshing the page.\n\nYou won't be charged again. If anything still looks wrong after that, just reply here and we'll take care of it.\n\nBest,\nPawPlan Support"
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -78,6 +78,7 @@ func (u *ExecuteAction) decideAndApply(ctx context.Context, tx CaseTx, caseID st
 		if err != nil {
 			return entity.ActionResult{}, err
 		}
+		recs.Now = now
 		gate := entity.EvaluateAction(*req.Action, outcome, recs)
 		if !gate.Allowed {
 			return blocked(gate.Rule, gate.Reason)
@@ -101,6 +102,10 @@ func (u *ExecuteAction) decideAndApply(ctx context.Context, tx CaseTx, caseID st
 				}
 			}
 			msg = fmt.Sprintf("Refunded $%.2f (%s).", amount, req.Action.PaymentID)
+		case entity.ActionCancelSubscription, entity.ActionSendMagicLink:
+			if msg, err = applyFixConnector(ctx, tx, kase.CustomerID, *req.Action, recs, now); err != nil {
+				return entity.ActionResult{}, err
+			}
 		}
 		if err := tx.SetCaseStatus(ctx, caseID, entity.CaseResolved); err != nil {
 			return entity.ActionResult{}, err

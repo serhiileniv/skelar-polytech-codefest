@@ -1,6 +1,6 @@
 # API contract — Go backend ↔ frontend
 
-Version: **v1** · 2026-10-31 · Owners: backend (Go), frontend (Next.js)
+Version: **v2** · 2026-10-31 · Owners: backend (Go), frontend (Next.js) · v2 = v1 + [Fix-it](#fix-it-v2-additive), additive only
 
 This file is the only interface between the two tracks. Each side builds against this file, not against the other's code.
 
@@ -221,3 +221,138 @@ data: {}
 | `case_105` | `cust_005` | `support_can_fix` | `refund_payment` (duplicate) |
 | `case_106` | `cust_006` | `need_more_info` | clarifying question |
 | `case_107` | `cust_007` | `suspicious` | none; any action → `blocked`, rule `S1` |
+
+## Fix-it (v2, additive)
+
+Spec: `docs/specs/fix-it-agent.md` (decisions 1–4). Everything above is unchanged; a v1 client keeps working.
+
+A second agent loop (≤ 6 steps, forced final `submitFixPlan`) turns a fixable verdict into a plan of proposals. Write tools never execute: they queue steps with a gate dry run. A support member picks the auto steps to run; each goes through `POST …/actions`' gate (`ExecuteAction`), in plan order, stopping at the first block. Every tool call, the approval and each step are audited.
+
+### Additions to v1 types
+
+```ts
+// SupportAction gains two members (also accepted by POST /api/cases/{id}/actions).
+// submitVerdict's supportAction enum is unchanged (restore_access | refund_payment).
+type SupportAction = /* v1 members */
+  | { type: "cancel_subscription"; subscriptionId: string; reason: string } // simulated store connector for app_store
+  | { type: "send_magic_link"; reason: string };                            // one-time login link, simulated email connector
+
+// ActionResult.rule gains C1, E1. ApiError message for a refused Fix-it start starts with S1 or F1.
+// AuditEntry.step gains: "fix:plan_proposed" (ai), "fix:approved" (support), "fix:completed" | "fix:stopped" (system),
+//   "cancel_subscription", "send_magic_link", "blocked:cancel_subscription", "blocked:send_magic_link".
+// Email log template gains "magic_link" (ids mail_r0001…).
+```
+
+### Rules
+
+| Rule | Applies to | Allowed when |
+|---|---|---|
+| **C1** | `cancel_subscription` | The subscription belongs to the case's customer (else A1) and is `active` |
+| **E1** | `send_magic_link` | A `password_reset_requested` event in the last 24h and no `magic_link` email in the last 24h |
+| **F1** | `POST …/fix`, `/mcp/cases/{id}` | Verdict exists, `outcome` is `user_can_fix` or `support_can_fix`, `downgraded = false`. S1 is checked first |
+
+### Endpoints
+
+| Method | Path | Request | Response |
+|---|---|---|---|
+| GET | `/api/fix/capabilities` | — | `FixCapability[]` (the catalog; same list the MCP server publishes as write tools) |
+| POST | `/api/cases/{id}/fix` | — | SSE stream (below); 409 `conflict` when S1/F1 refuse or a run is already active |
+| POST | `/api/cases/{id}/fix/{planId}/approve` | `{ stepIds: string[] }` (auto step ids; `[]` runs none) | `FixRunResult` |
+| — | `/mcp/cases/{id}` | MCP Streamable HTTP | External surface over the same tools (not used by the UI). No auth: local demo only |
+
+Approve errors: unknown or replaced plan → 404 `not_found`; already approved → 409 `conflict`; a manual, unknown or repeated step id → 400 `bad_request`. Plans live in memory: after an API restart approve returns 404, run Fix-it again.
+
+```ts
+type FixToolName =
+  | "getCase" | "getBilling" | "getEntitlements" | "getEmailLog"                        // read
+  | "cancelSubscription" | "sendMagicLink" | "restoreAccess" | "refundPayment"          // catalog: queue an auto step
+  | "noteManualStep"                                                                     // queue a manual step
+  | "submitFixPlan";                                                                     // final, loop only (not on MCP)
+
+interface FixCapability {
+  tool: FixToolName;             // a catalog tool
+  actor: "customer" | "support"; // on whose behalf it acts
+  label: string;                 // "Cancel subscription"
+  description: string;           // one line
+  rule: string;                  // gate rule: C1 | E1 | R1 | P1
+}
+
+interface FixStep {
+  id: string;                    // "step_1"…, unique in the plan
+  kind: "auto" | "manual";       // manual steps never execute; they are instructions
+  owner: "agent" | "support" | "customer" | "tech"; // auto → "agent"
+  title: string;                 // "Cancel App Store subscription sub_0001 (simulated store connector)"
+  detail: string;                // auto: the agent's reason; manual: the instruction
+  // auto only:
+  tool?: FixToolName;
+  actor?: "customer" | "support";
+  input?: object;                // the tool input, e.g. { subscriptionId, reason }
+  rule?: string;                 // rule the gate dry run applied (C1, E1, R1, P1, P2, P3, A1, S1)
+  wouldBe?: "executed" | "blocked";
+  previewMessage?: string;       // the gate's reason
+}
+
+interface FixPlan {
+  id: string; caseId: string;
+  problem: string;               // one sentence: the confirmed problem, citing evidence ids
+  summary: string;               // one line: how the steps resolve it
+  steps: FixStep[];              // ONE ordered list, auto + manual mixed; order = execution order
+  replyBody: string;             // sent as the support reply after a successful run
+  createdAt: string;
+}
+
+interface FixRunResult {
+  planId: string;
+  status: "executed" | "stopped"; // stopped = a selected step was blocked
+  steps: { stepId: string; status: "executed" | "blocked" | "skipped"; result: ActionResult | null }[]; // auto steps, plan order; skipped = not selected or after the block
+  replied: boolean;              // reply sent (only when status = executed)
+  resolved: boolean;             // every selected step executed and no manual step in the plan
+}
+```
+
+When not resolved, the case is left `waiting_customer` (a support action no longer auto-resolves it inside a Fix-it run).
+
+### Fix stream (SSE)
+
+Same framing and order as the investigate stream; `plan` replaces `verdict`.
+
+| Event | Data |
+|---|---|
+| `start` | `{ caseId; replay; model; maxSteps: 6; mode: "fix" }` |
+| `step` / `text` | as investigate |
+| `tool_call` | `{ callId; tool: FixToolName; input }` |
+| `tool_result` | `{ callId; tool: FixToolName; output; ids }`. A queue tool's output: `{ queued: true, executed: false, planId, stepId, kind, wouldBe?, rule?, previewMessage? }` |
+| `plan` | `{ plan: FixPlan }` |
+| `error` / `done` | as investigate. No plan within 6 steps → `error` (`conflict`) |
+
+Replay: `backend/replay/fix_<caseId>.json` (same format as investigate recordings).
+
+### Demo
+
+| Case | Plan (auto → manual) |
+|---|---|
+| `case_101` | `cancelSubscription sub_0001` (C1, simulated App Store connector) → customer confirms in Apple ID |
+| `case_102` | `sendMagicLink` (E1) → customer finds the login email. A second link within 24h → `blocked` E1 |
+| `case_103` | `restoreAccess ent_0003` (R1) |
+| `case_105` | `refundPayment pay_0006` (P1) |
+| `case_104`, `case_106`, `case_107` | `POST …/fix` → 409 (F1, F1, S1) |
+
+## v2 · Ask (additive)
+
+Spec: `docs/specs/copilot-conversation.md`. Support asks Verdict about a stored verdict; answers come only from the case customer's records. Read-only: no action, no audit row.
+
+| Method | Path | Request | Response |
+|---|---|---|---|
+| POST | `/api/cases/{id}/ask` | `{ question: string }` (1–500 chars, trimmed) | `AskAnswer` |
+
+```ts
+interface AskAnswer {
+  answer: string;     // plain text, ~≤120 words (hard cap 1200 chars); record ids cited inline, e.g. "(err_0002)"
+  evidence: string[]; // ids mentioned in `answer` that are this case customer's records, first-mention order; others dropped
+}
+```
+
+Errors: bad body or question length → 400 `bad_request`; unknown case → 404 `not_found`; no verdict yet → 409 `conflict`.
+
+- Live: one Claude call (verdict + customer records + case messages as untrusted data). Not in the evidence → the answer says so, `evidence: []`.
+- No API key / `VERDICT_REPLAY=1`: answers from the verdict's summary + evidence notes (same shape, still 200).

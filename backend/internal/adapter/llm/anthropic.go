@@ -34,6 +34,7 @@ type liveSession struct {
 	prompt     string
 	tools      []anthropic.BetaToolUnionParam
 	submitOnly []anthropic.BetaToolUnionParam
+	finalTool  string // submitVerdict (investigate) or submitFixPlan (Fix-it)
 	messages   []anthropic.BetaMessageParam
 }
 
@@ -51,8 +52,9 @@ func (m *liveModel) start(system, prompt string, specs []usecase.ToolSpec) *live
 		}
 		u := anthropic.BetaToolUnionParam{OfTool: &t}
 		s.tools = append(s.tools, u)
-		if spec.Name == usecase.ToolSubmitVerdict {
+		if spec.Name == usecase.ToolSubmitVerdict || spec.Name == usecase.ToolSubmitFixPlan {
 			s.submitOnly = []anthropic.BetaToolUnionParam{u}
+			s.finalTool = spec.Name
 		}
 	}
 	return s
@@ -67,13 +69,17 @@ func (s *liveSession) Next(ctx context.Context, results []usecase.ToolResult, fi
 		blocks = append(blocks, anthropic.NewBetaToolResultBlock(r.CallID, r.Content, r.IsError))
 	}
 	if len(s.messages) > 0 && len(results) == 0 {
-		blocks = append(blocks, anthropic.NewBetaTextBlock("Use the tools to investigate, then call submitVerdict."))
+		blocks = append(blocks, anthropic.NewBetaTextBlock("Use the tools, then call "+s.finalTool+"."))
 	}
 	tools := s.tools
 	if finalStep {
 		// Forced tool_choice is rejected on current models: offer only submitVerdict and say so.
 		tools = s.submitOnly
-		blocks = append(blocks, anthropic.NewBetaTextBlock(usecase.FinalStepNote))
+		note := usecase.FinalStepNote
+		if s.finalTool == usecase.ToolSubmitFixPlan {
+			note = usecase.FixFinalStepNote
+		}
+		blocks = append(blocks, anthropic.NewBetaTextBlock(note))
 	}
 	s.messages = append(s.messages, anthropic.NewBetaUserMessage(blocks...))
 

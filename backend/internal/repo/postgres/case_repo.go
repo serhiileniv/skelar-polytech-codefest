@@ -93,8 +93,10 @@ func (t caseTx) CustomerRecords(ctx context.Context, customerID string) (entity.
 		return recs, err
 	}
 	rows, err = t.tx.Query(ctx, `SELECT `+payCols+` FROM payments WHERE customer_id = $1 ORDER BY at, id FOR UPDATE`, customerID)
-	recs.Payments, err = collect(rows, err, scanPay)
-	return recs, err
+	if recs.Payments, err = collect(rows, err, scanPay); err != nil {
+		return recs, err
+	}
+	return fixRecords(ctx, t.tx, customerID, recs)
 }
 
 func (t caseTx) Billing(ctx context.Context) (entity.Billing, error) { return billing(ctx, t.tx) }
@@ -238,7 +240,7 @@ func (r *CaseRepo) MetricsInputs(ctx context.Context) (int, []entity.Verdict, en
 		return 0, nil, actions, nil, err
 	}
 	err = r.pool.QueryRow(ctx, `
-		SELECT count(*) FILTER (WHERE actor = 'support' AND step IN ('restore_access', 'refund_payment', 'send_to_tech', 'mark_resolved')),
+		SELECT count(*) FILTER (WHERE actor = 'support' AND step IN ('restore_access', 'refund_payment', 'cancel_subscription', 'send_magic_link', 'send_to_tech', 'mark_resolved')),
 		       count(*) FILTER (WHERE step LIKE 'blocked:%')
 		FROM audit_log`).Scan(&actions.Executed, &actions.Blocked)
 	if err != nil {

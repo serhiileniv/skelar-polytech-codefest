@@ -112,14 +112,24 @@ func (a SupportAction) Check() error {
 	switch a.Type {
 	case ActionRestoreAccess:
 		target = a.EntitlementID
-		if a.PaymentID != "" {
-			return errors.New("restore_access takes entitlementId, not paymentId")
+		if a.PaymentID != "" || a.SubscriptionID != "" {
+			return errors.New("restore_access takes entitlementId only")
 		}
 	case ActionRefundPayment:
 		target = a.PaymentID
-		if a.EntitlementID != "" {
-			return errors.New("refund_payment takes paymentId, not entitlementId")
+		if a.EntitlementID != "" || a.SubscriptionID != "" {
+			return errors.New("refund_payment takes paymentId only")
 		}
+	case ActionCancelSubscription:
+		target = a.SubscriptionID
+		if a.EntitlementID != "" || a.PaymentID != "" {
+			return errors.New("cancel_subscription takes subscriptionId only")
+		}
+	case ActionSendMagicLink:
+		if a.EntitlementID != "" || a.PaymentID != "" || a.SubscriptionID != "" {
+			return errors.New("send_magic_link takes no target id")
+		}
+		target = "customer" // the case's own customer; nothing to select
 	default:
 		return fmt.Errorf("unknown action type %q", a.Type)
 	}
@@ -134,8 +144,13 @@ func (a SupportAction) Check() error {
 
 // Target is the record id the action changes.
 func (a SupportAction) Target() string {
-	if a.Type == ActionRestoreAccess {
+	switch a.Type {
+	case ActionRestoreAccess:
 		return a.EntitlementID
+	case ActionCancelSubscription:
+		return a.SubscriptionID
+	case ActionSendMagicLink:
+		return ""
 	}
 	return a.PaymentID
 }

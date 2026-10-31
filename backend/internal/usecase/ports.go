@@ -34,6 +34,9 @@ type CaseTx interface {
 	Billing(ctx context.Context) (entity.Billing, error)
 	RestoreEntitlement(ctx context.Context, entitlementID, paymentID string, at time.Time) error
 	RefundPayment(ctx context.Context, paymentID string) error
+	CancelSubscription(ctx context.Context, subscriptionID string, at time.Time) error
+	// AddEmail logs an email to the customer's own address and returns its new id.
+	AddEmail(ctx context.Context, customerID, template string, at time.Time) (string, error)
 	SetCaseStatus(ctx context.Context, caseID string, status entity.CaseStatus) error
 	OpenTechIssue(ctx context.Context, sig entity.Signature) (*entity.TechIssue, error)
 	NextTechIssueID(ctx context.Context) (string, error)

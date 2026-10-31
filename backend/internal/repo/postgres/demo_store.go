@@ -23,7 +23,7 @@ func (s *DemoStore) ReplaceWorld(ctx context.Context, w entity.World) error {
 			session_events, entitlements, payments, subscriptions, help_articles, customers RESTART IDENTITY`); err != nil {
 			return fmt.Errorf("truncate: %w", err)
 		}
-		for _, seq := range []string{"tech_issue_seq", "reply_seq"} {
+		for _, seq := range []string{"tech_issue_seq", "reply_seq", "email_seq"} {
 			if _, err := tx.Exec(ctx, `ALTER SEQUENCE `+seq+` RESTART`); err != nil {
 				return fmt.Errorf("restart %s: %w", seq, err)
 			}

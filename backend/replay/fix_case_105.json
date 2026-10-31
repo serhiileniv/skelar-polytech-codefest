@@ -1,0 +1,54 @@
+{
+ "caseId": "fix_case_105",
+ "model": "claude-opus-5-5",
+ "source": "live",
+ "recordedAt": "2026-10-31T12:57:44.41928Z",
+ "turns": [
+  {
+   "text": "I'll check the billing records to confirm the duplicate charge.",
+   "calls": [
+    {
+     "id": "toolu_01QZkGpYuHsN4QyiUzjUVFoA",
+     "name": "getBilling",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Billing confirms pay_0006 is a duplicate within $50; queuing the refund.",
+   "calls": [
+    {
+     "id": "toolu_014uPjGMqvvBqU9QWnoKWDsq",
+     "name": "refundPayment",
+     "input": {
+      "paymentId": "pay_0006",
+      "reason": "Duplicate $29.99 renewal charge for sub_0006 created 40s after pay_0005 by a billing retry without idempotency key (err_0003)."
+     }
+    }
+   ]
+  },
+  {
+   "text": "The root cause is a billing bug, so I'll add a tech step for it.",
+   "calls": [
+    {
+     "id": "toolu_015vq2iVSBmFMMZV5q3R3Tet",
+     "name": "noteManualStep",
+     "input": {
+      "owner": "tech",
+      "title": "Add idempotency key to renewal retries",
+      "detail": "err_0003: billing service sent a renewal retry for sub_0006 without an idempotency key, creating duplicate charge pay_0006. Ensure retries reuse the original idempotency key so they can't charge twice."
+     }
+    },
+    {
+     "id": "toolu_012PUVq54gt88GEQUn8nBCJx",
+     "name": "submitFixPlan",
+     "input": {
+      "problem": "Web subscription sub_0006 was charged twice for the 2026-10-31 renewal: pay_0005 is valid, and pay_0006 ($29.99, 40s later) is a duplicate. A billing retry sent without an idempotency key caused it (err_0003).",
+      "summary": "Refund duplicate pay_0006 (step_1, gate P1 would execute); tech fixes the missing idempotency key on renewal retries.",
+      "replyBody": "Hi Ava,\n\nSorry about the double charge. You're right: your monthly renewal this morning charged your card twice for $29.99. A retry on our billing side caused it. Nothing you did made it happen.\n\nWe've set up a full refund of the extra $29.99 charge, and it goes out once a team member approves it. Depending on your bank, it can take a few business days to show on your statement. Your subscription stays active, and the other $29.99 charge covers this month's renewal. Our tech team is also fixing the cause so it doesn't happen again.\n\nYou don't need to do anything. If the refund doesn't show up within about a week, just reply here.\n\nBest,\nPawPlan Support"
+     }
+    }
+   ]
+  }
+ ]
+}

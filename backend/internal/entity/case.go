@@ -51,14 +51,19 @@ type SupportActionType string
 const (
 	ActionRestoreAccess SupportActionType = "restore_access"
 	ActionRefundPayment SupportActionType = "refund_payment"
+	// Fix-it (contract v2): act on the customer's behalf through simulated connectors.
+	ActionCancelSubscription SupportActionType = "cancel_subscription"
+	ActionSendMagicLink      SupportActionType = "send_magic_link"
 )
 
-// SupportAction is the docs/api.md union: restore_access carries EntitlementID, refund_payment carries PaymentID.
+// SupportAction is the docs/api.md union: restore_access carries EntitlementID, refund_payment carries PaymentID,
+// cancel_subscription carries SubscriptionID, send_magic_link carries no target.
 type SupportAction struct {
-	Type          SupportActionType `json:"type"`
-	EntitlementID string            `json:"entitlementId,omitempty"`
-	PaymentID     string            `json:"paymentId,omitempty"`
-	Reason        string            `json:"reason"`
+	Type           SupportActionType `json:"type"`
+	EntitlementID  string            `json:"entitlementId,omitempty"`
+	PaymentID      string            `json:"paymentId,omitempty"`
+	SubscriptionID string            `json:"subscriptionId,omitempty"`
+	Reason         string            `json:"reason"`
 }
 
 type Evidence struct {

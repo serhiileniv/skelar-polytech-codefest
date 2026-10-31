@@ -21,7 +21,11 @@ type Deps struct {
 	Investigations  Investigations
 	Metrics         MetricsReader
 	Reset           Resetter
-	FrontendOrigins []string // CORS allow-list; "*" allows any origin
+	Fixes           Fixes        // Fix-it (contract v2); nil disables the routes
+	FixApprovals    FixApprovals // Fix-it approve
+	MCP             http.Handler // /mcp/cases/{id} (Streamable HTTP); nil disables it
+	Asks            Asker        // Ask (contract v2); nil disables the route
+	FrontendOrigins []string     // CORS allow-list; "*" allows any origin
 	Log             *slog.Logger
 }
 
@@ -37,6 +41,17 @@ func NewRouter(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/board", getBoard(d.Cases))
 	mux.HandleFunc("GET /api/metrics", getMetrics(d.Metrics))
 	mux.HandleFunc("DELETE /api/state", deleteState(d.Reset))
+	if d.Fixes != nil && d.FixApprovals != nil {
+		mux.HandleFunc("GET /api/fix/capabilities", getFixCapabilities(d.Fixes))
+		mux.HandleFunc("POST /api/cases/{id}/fix", postFix(d.Fixes))
+		mux.HandleFunc("POST /api/cases/{id}/fix/{planId}/approve", postFixApprove(d.FixApprovals))
+	}
+	if d.Asks != nil {
+		mux.HandleFunc("POST /api/cases/{id}/ask", postAsk(d.Asks))
+	}
+	if d.MCP != nil {
+		mux.Handle("/mcp/cases/{id}", d.MCP)
+	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, ApiError{"not_found", "No such endpoint."})
 	})

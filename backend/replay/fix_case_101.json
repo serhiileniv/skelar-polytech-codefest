@@ -1,0 +1,64 @@
+{
+ "caseId": "fix_case_101",
+ "model": "claude-opus-5-5",
+ "source": "live",
+ "recordedAt": "2026-10-31T12:57:51.087097Z",
+ "turns": [
+  {
+   "text": "I'll start by confirming the case and billing records.",
+   "calls": [
+    {
+     "id": "toolu_014E86vbpKYxNSvXkuYuTsH3",
+     "name": "getCase",
+     "input": {}
+    },
+    {
+     "id": "toolu_018gY5DK4VkWbMK8ZMWAZg4g",
+     "name": "getBilling",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "The records match the verdict: sub_0001 is still active and pay_0001 is a normal monthly charge, not a duplicate. The catalog can cancel App Store subscriptions, so I'll queue that myself.",
+   "calls": [
+    {
+     "id": "toolu_01Md3p6LwjrpgoUJPPWyKJcD",
+     "name": "cancelSubscription",
+     "input": {
+      "subscriptionId": "sub_0001",
+      "reason": "Customer asked to stop charges (msg_0002). They deleted the app (ev_0001) but sub_0001 is still active with canceledAt null and renews 2026-11-28."
+     }
+    }
+   ]
+  },
+  {
+   "text": "The cancellation would go through. Apple handles App Store refunds, so I'll add a manual customer step for checking the cancellation and an optional refund request.",
+   "calls": [
+    {
+     "id": "toolu_01CE5CBykXuhE9sL6nQ8ZBaP",
+     "name": "noteManualStep",
+     "input": {
+      "owner": "customer",
+      "title": "Confirm cancellation in Apple ID; optionally request refund from Apple",
+      "detail": "After the cancellation goes through, the customer checks Settings \u003e [name] \u003e Subscriptions to make sure PawPlan shows as cancelled. If they want a refund for pay_0001 ($29.99, 2026-10-29), they ask Apple at reportaproblem.apple.com. Support can't refund App Store charges."
+     }
+    }
+   ]
+  },
+  {
+   "text": "",
+   "calls": [
+    {
+     "id": "toolu_01Fsvvu1fnwt1JneJCAthGK4",
+     "name": "submitFixPlan",
+     "input": {
+      "problem": "Customer cust_001 deleted the iOS app (ev_0001) but never cancelled, so App Store subscription sub_0001 is still active (canceledAt null, renews 2026-11-28) and was charged again in pay_0001 ($29.99, 2026-10-29).",
+      "summary": "Cancel sub_0001 through the App Store connector to stop future renewals; the customer checks the cancellation in Apple ID settings and can ask Apple for a refund if they want one.",
+      "replyBody": "Hi Emma,\n\nSorry about the unexpected charge. Your PawPlan subscription was bought through Apple on your iPhone. Deleting the app doesn't cancel an Apple subscription, so it stayed active and renewed on October 29.\n\nWe've set up the cancellation of your PawPlan subscription for you. Once it's processed, you won't be charged again, and the November 28 renewal won't happen.\n\nWhat's left for you:\n1. To double-check, open Settings on your iPhone, tap your name, then Subscriptions. PawPlan should show as cancelled.\n2. Optional: if you'd like a refund for the October 29 charge ($29.99), you can ask Apple at reportaproblem.apple.com. Apple handles all billing for iPhone purchases, so we can't refund it on our side.\n\nIf anything still looks wrong, just reply here and we'll help.\n\nBest,\nPawPlan Support"
+     }
+    }
+   ]
+  }
+ ]
+}

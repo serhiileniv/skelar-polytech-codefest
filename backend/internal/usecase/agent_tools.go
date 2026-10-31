@@ -50,7 +50,7 @@ func AgentTools() []ToolSpec {
 		noInput(ToolGetBilling, "The customer's subscriptions and payments (channel web or app_store)."),
 		noInput(ToolGetEntitlements, "The customer's Premium entitlements and which account they attach to."),
 		noInput(ToolGetSessionEvents, "What the customer did on web and in the app (logins, cancels, deletes, password resets)."),
-		noInput(ToolGetErrorLogs, "Backend and app error logs for this customer."),
+		noInput(ToolGetErrorLogs, "Backend and app error logs for this customer. Check on every billing, cancellation, refund or access complaint: a server error here means the UI may have shown a success that did not happen."),
 		noInput(ToolGetEmailLog, "Emails sent to the customer and whether they were delivered or bounced."),
 		{Name: ToolSearchHelp, Description: "Keyword search over help-center articles. Returns up to 3 articles with steps.",
 			Properties: map[string]any{"query": map[string]any{"type": "string", "minLength": 1, "maxLength": 200, "description": "Keywords, e.g. 'cancel subscription ios'."}},

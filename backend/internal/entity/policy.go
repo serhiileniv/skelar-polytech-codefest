@@ -28,8 +28,12 @@ type GateResult struct {
 
 // CustomerRecords is the case customer's mutable records, as the gate sees them.
 type CustomerRecords struct {
-	Entitlements []Entitlement
-	Payments     []Payment
+	Entitlements  []Entitlement
+	Payments      []Payment
+	Subscriptions []Subscription // C1
+	Events        []SessionEvent // E1
+	Emails        []EmailLog     // E1
+	Now           time.Time      // clock for time-window rules (E1); set by the use case
 }
 
 // EvaluateAction runs the policy gate on a support action, regardless of what the AI proposed.
@@ -83,6 +87,11 @@ func EvaluateAction(a SupportAction, caseOutcome Outcome, recs CustomerRecords) 
 			}
 		}
 		return GateResult{false, RuleDuplicate, fmt.Sprintf("Payment %s is not a duplicate charge; support only refunds duplicates.", pay.ID)}
+
+	case ActionCancelSubscription:
+		return evaluateCancel(a, recs)
+	case ActionSendMagicLink:
+		return evaluateMagicLink(recs)
 	}
 	return GateResult{false, RuleOwnRecords, "Unknown action."}
 }

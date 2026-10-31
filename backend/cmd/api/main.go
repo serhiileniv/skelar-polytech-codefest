@@ -14,6 +14,8 @@ import (
 	"github.com/serhiileniv/skelar-polytech-codefest/backend/internal/adapter/llm"
 	"github.com/serhiileniv/skelar-polytech-codefest/backend/internal/config"
 	httpctl "github.com/serhiileniv/skelar-polytech-codefest/backend/internal/controller/http"
+	mcpctl "github.com/serhiileniv/skelar-polytech-codefest/backend/internal/controller/mcp"
+	"github.com/serhiileniv/skelar-polytech-codefest/backend/internal/repo/memory"
 	"github.com/serhiileniv/skelar-polytech-codefest/backend/internal/repo/postgres"
 	"github.com/serhiileniv/skelar-polytech-codefest/backend/internal/usecase"
 	"github.com/serhiileniv/skelar-polytech-codefest/backend/migrations"
@@ -53,11 +55,19 @@ func run() error {
 		APIKey: cfg.AnthropicAPIKey, Model: cfg.AnthropicModel, ReplayDir: cfg.ReplayDir,
 		ForceReplay: cfg.Replay, Record: cfg.Record, ReplayDelay: cfg.ReplayDelay,
 	})
+	actions := usecase.NewExecuteAction(repo, now)
+	replies := usecase.NewReplyToCase(repo, repo, now)
+	fixPlans := memory.NewFixPlans()
+	fixes := usecase.NewFixCase(repo, model, fixPlans, now)
 	handler := httpctl.NewRouter(httpctl.Deps{
 		DB:              pool,
 		Cases:           usecase.NewReadCases(repo, repo),
-		Actions:         usecase.NewExecuteAction(repo, now),
-		Replies:         usecase.NewReplyToCase(repo, repo, now),
+		Actions:         actions,
+		Replies:         replies,
+		Fixes:           fixes,
+		FixApprovals:    usecase.NewApproveFix(fixPlans, actions, replies, repo, now),
+		MCP:             mcpctl.Handler(fixes, log),
+		Asks:            usecase.NewAskCase(repo, model),
 		Investigations:  usecase.NewInvestigateCase(repo, model, now),
 		Metrics:         usecase.NewGetMetrics(repo),
 		Reset:           usecase.NewResetDemo(postgres.NewDemoStore(pool)),

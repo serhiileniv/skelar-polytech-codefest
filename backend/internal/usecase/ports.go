@@ -39,6 +39,8 @@ type CaseTx interface {
 	AddEmail(ctx context.Context, customerID, template string, at time.Time) (string, error)
 	SetCaseStatus(ctx context.Context, caseID string, status entity.CaseStatus) error
 	OpenTechIssue(ctx context.Context, sig entity.Signature) (*entity.TechIssue, error)
+	// OpenTechIssueForCase is the unresolved card that lists the case (T2), or nil.
+	OpenTechIssueForCase(ctx context.Context, caseID string) (*entity.TechIssue, error)
 	NextTechIssueID(ctx context.Context) (string, error)
 	SaveTechIssue(ctx context.Context, t entity.TechIssue) error
 	NextReplyID(ctx context.Context) (string, error)
@@ -58,6 +60,7 @@ type InvestigationStore interface {
 	Emails(ctx context.Context, customerID string) ([]entity.EmailLog, error)
 	HelpArticles(ctx context.Context) ([]entity.HelpArticle, error)
 	Billing(ctx context.Context) (entity.Billing, error)
+	ListTechIssues(ctx context.Context) ([]entity.TechIssue, error) // T2 dry run: is a ticket already open for the case
 	AppendAudit(ctx context.Context, e entity.AuditEntry) error
 	SaveVerdict(ctx context.Context, caseID string, v entity.Verdict) error
 }

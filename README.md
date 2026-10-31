@@ -1,4 +1,4 @@
-# Skelar Polytech Codefest — AI Customer Support Automation
+# Resolly — AI Customer Support Automation (Skelar Polytech Codefest)
 
 Pitch: TBD. Brief: [`docs/brief/brief.md`](docs/brief/brief.md).
 

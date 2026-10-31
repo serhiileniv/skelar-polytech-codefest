@@ -33,7 +33,7 @@ func Handler(open ToolOpener, log *slog.Logger) http.Handler {
 
 // NewServer registers every Fix-it tool spec on a new server. Inputs are validated by the registry in Go.
 func NewServer(tools *usecase.FixTools) *mcp.Server {
-	s := mcp.NewServer(&mcp.Implementation{Name: "verdict-fixit", Title: "Verdict Fix-it", Version: "1.0.0"}, nil)
+	s := mcp.NewServer(&mcp.Implementation{Name: "verdict-fixit", Title: "Resolly Fix-it", Version: "1.0.0"}, nil)
 	caps := map[string]any{}
 	for _, c := range usecase.FixCapabilities() {
 		caps[c.Tool] = c

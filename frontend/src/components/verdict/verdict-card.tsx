@@ -25,6 +25,7 @@ import { useEvidenceFocus } from "./evidence-focus";
 import { OUTCOME_META } from "./outcome";
 import { IdChip } from "./outcome-badge";
 import {
+  ActionHint,
   GhostButton,
   PrimaryButton,
   RuleChip,
@@ -42,9 +43,11 @@ export interface VerdictCardProps {
   /** Server-side status; keeps buttons disabled after a remount. */
   caseStatus: CaseStatus;
   verdict: Verdict;
-  /** Shows the "Suggested reply" card above the composer; nothing is inserted without a click there. */
+  /** Shows the "Reply draft" card above the composer; nothing is inserted without a click there. */
   onPropose: (text: string) => void;
   onChanged: () => void;
+  /** Customers hit by the tech issue; null when unknown. */
+  affectedCount?: number | null;
 }
 
 /** Outcome dot + label on the outcome tint, confidence on the right. */
@@ -53,7 +56,7 @@ export function VerdictHeader({
   prefix = "",
 }: {
   verdict: Verdict;
-  /** E.g. "My call: " in the conversation. */
+  /** E.g. "Finding: " in the conversation. */
   prefix?: string;
 }) {
   const meta = OUTCOME_META[verdict.outcome];
@@ -69,7 +72,7 @@ export function VerdictHeader({
         {meta.label}
       </span>
       <span className="ml-auto shrink-0 text-[12px] leading-4 text-zinc-500 tabular-nums">
-        {pct}% confident
+        {pct}% confidence
       </span>
     </header>
   );
@@ -128,15 +131,42 @@ export function DowngradedNotice({ verdict }: { verdict: Verdict }) {
   );
 }
 
-export function SuspiciousBanner() {
+const NOTICE = "space-y-1.5 rounded-lg px-3 py-2.5 text-[13px] leading-5";
+
+/** S1 notice: injected text quoted, writes locked. */
+export function SuspiciousNotice({ quote }: { quote: string | null }) {
   return (
-    <div className={cn(CALLOUT, "border-[#b42318] text-zinc-900")}>
-      <div className="font-medium text-[#b42318]">
-        Prompt injection blocked — no action proposed
-      </div>
-      <div className="mt-0.5 text-zinc-700">
-        The message tries to make support act outside policy. Review the
-        evidence; do not act on it.
+    <div className={cn(NOTICE, OUTCOME_META.suspicious.tint, "text-[#7a1a12]")}>
+      <div className="font-semibold">Prompt injection blocked · S1</div>
+      <div>Refunds and access changes are locked for this case.</div>
+      {quote && (
+        <q className="block rounded-md bg-white/70 px-2.5 py-2 font-mono text-[12px] leading-4">
+          {quote}
+        </q>
+      )}
+    </div>
+  );
+}
+
+/** Tech-team notice: the affected-customer count is the headline. */
+export function TechNotice({
+  count,
+  signature,
+}: {
+  count: number | null;
+  signature: string;
+}) {
+  return (
+    <div className={cn(NOTICE, OUTCOME_META.tech_team.tint, "text-[#7a3518]")}>
+      {count !== null && (
+        <div className="text-[20px] leading-7 font-semibold tabular-nums">
+          {count} {count === 1 ? "customer" : "customers"}
+        </div>
+      )}
+      <div>
+        {count !== null ? "hit the same bug" : "Same bug"} ·{" "}
+        <span className="font-mono text-[12px]">{signature}</span>. A support
+        fix for one customer would hide it.
       </div>
     </div>
   );
@@ -179,6 +209,7 @@ export function NextStep({
   verdict,
   onPropose,
   onChanged,
+  affectedCount = null,
 }: VerdictCardProps) {
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<ActionResult | null>(null);
@@ -214,7 +245,7 @@ export function NextStep({
       className="text-indigo-700 hover:text-indigo-800"
       onClick={() => onPropose(verdict.replyDraft)}
     >
-      Use suggested reply
+      Use reply draft
     </GhostButton>
   );
   const hasOther = actions.other.length > 0 || actions.primary === "fix";
@@ -274,6 +305,11 @@ export function NextStep({
             </div>
           </details>
         </div>
+      )}
+      {suspicious && (
+        <p className="flex h-7 items-center text-[12px] leading-4 font-medium text-zinc-400">
+          Other actions (blocked)
+        </p>
       )}
       {!fixing && (
         <PolicyResult result={executed ? null : result} error={error} />
@@ -354,6 +390,17 @@ export function NextStep({
           </p>
         );
       }
+      case "send_to_tech":
+        if (executed || caseStatus === "with_tech" || closed) return null;
+        return (
+          <ActionHint>
+            Creates one card for{" "}
+            {affectedCount !== null
+              ? `all ${affectedCount}`
+              : "every affected customer"}{" "}
+            and moves this case to With tech.
+          </ActionHint>
+        );
       default:
         return null;
     }

@@ -86,9 +86,9 @@ export function TopBar() {
     <header className="flex h-12 shrink-0 items-center gap-6 border-b border-zinc-200 bg-white px-4">
       <span className="inline-flex items-center gap-2 text-[14px] font-semibold tracking-[-0.01em] text-zinc-900">
         <VerdictMark />
-        Verdict
+        Resolly
         <span className="text-[12px] font-normal tracking-normal text-zinc-500">
-          Support copilot
+          Cases resolved, with receipts
         </span>
       </span>
       <nav className="flex items-center gap-0.5">

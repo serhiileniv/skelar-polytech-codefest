@@ -14,6 +14,7 @@ import type {
   FixStepResult,
   FixToolName,
   SupportAction,
+  TechTicket,
 } from "../types";
 import type { FixScript } from "./fix-scripts";
 import {
@@ -61,6 +62,14 @@ export const FIX_CAPABILITIES: FixCapability[] = [
       "Refunds one duplicate charge of $50 or less (P1 duplicate, P2 limit, P3 once).",
     rule: "P1",
   },
+  {
+    tool: "createTechTicket",
+    actor: "support",
+    label: "Create tech ticket",
+    description:
+      "Creates a tech-board ticket for a technical root cause: root cause, cited records (at least one err_* error log) with notes, affected customers and the case history. Tech decides the fix.",
+    rule: "T2",
+  },
 ];
 
 const badInput = (message: string): ApiRequestError =>
@@ -76,6 +85,17 @@ function str(input: Record<string, unknown>, key: string): string {
 /** Maps an auto step to the gate request it stands for. */
 function toRequest(step: Pick<FixAutoStep, "tool" | "input">): ActionRequest {
   const { input } = step;
+  if (step.tool === "createTechTicket") {
+    const ticket = {
+      title: str(input, "title"),
+      rootCause: str(input, "rootCause"),
+      signature: str(input, "signature"),
+      evidence: input.evidence,
+    } as TechTicket;
+    if (!Array.isArray(ticket.evidence) || ticket.evidence.length === 0)
+      throw badInput('Step input "evidence" must be a non-empty list');
+    return { kind: "create_tech_ticket", ticket };
+  }
   const reason = str(input, "reason");
   const action = ((): SupportAction => {
     switch (step.tool) {
@@ -93,7 +113,7 @@ function toRequest(step: Pick<FixAutoStep, "tool" | "input">): ActionRequest {
           entitlementId: str(input, "entitlementId"),
           reason,
         };
-      case "refundPayment":
+      default:
         return {
           type: "refund_payment",
           paymentId: str(input, "paymentId"),
@@ -173,7 +193,7 @@ function stepCall(
   };
   if (step.kind === "manual")
     return {
-      text: `Noting what ${step.owner === "tech" ? "the tech team" : `the ${step.owner}`} has to do.`,
+      text: "Noting what the customer has to do.",
       tool: "noteManualStep",
       input: { owner: step.owner, title: step.title, detail: step.detail },
       output: queued,
@@ -181,6 +201,9 @@ function stepCall(
     };
   const draft = script.steps[i];
   const target = targetId(step.input);
+  const evidence = Array.isArray(step.input.evidence)
+    ? (step.input.evidence as { id: string }[]).map((e) => e.id)
+    : [];
   return {
     text: draft.kind === "auto" ? draft.text : "",
     tool: step.tool,
@@ -191,7 +214,7 @@ function stepCall(
       rule: step.rule,
       previewMessage: step.previewMessage,
     },
-    ids: target ? [target] : [],
+    ids: target ? [target] : evidence,
   };
 }
 

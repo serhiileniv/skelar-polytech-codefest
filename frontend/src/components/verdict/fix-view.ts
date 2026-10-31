@@ -21,12 +21,8 @@ export function ownerLabel(step: FixStep): string {
       return step.kind === "auto" && step.actor === "customer"
         ? "I'll do this for the customer"
         : "I'll do this as support";
-    case "support":
-      return "You";
     case "customer":
       return "Customer";
-    case "tech":
-      return "Tech team";
   }
 }
 

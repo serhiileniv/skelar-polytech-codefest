@@ -1,4 +1,4 @@
-import type { CaseDetail, Verdict } from "@/api";
+import type { CaseDetail, ChatMessage, TechIssue, Verdict } from "@/api";
 
 import { fixAllowed } from "./fix-view";
 import { groupSteps, type TraceItem } from "./investigate-trace";
@@ -123,7 +123,7 @@ export interface NextStepActions {
   primary: PrimaryAction | null;
   /** Manual alternatives behind "Other actions". */
   other: OtherAction[];
-  /** "Use suggested reply" as a secondary text button. */
+  /** "Use reply draft" as a secondary text button. */
   reply: boolean;
 }
 
@@ -191,7 +191,44 @@ export function typewriterLength(
 
 /** Quick questions above the Ask input, until the first question. */
 export const QUICK_QUESTIONS = [
-  "Why this outcome?",
-  "What evidence?",
+  "Show the evidence chain",
+  "Which records prove it?",
   "What if I refund?",
 ] as const;
+
+/** Customers hit by the verdict's tech issue: the board card for its signature, else "N customers" in the root cause / summary. */
+export function affectedCount(
+  v: Verdict,
+  board: readonly TechIssue[] | null,
+): number | null {
+  const sig = v.techIssue?.signature;
+  if (!sig) return null;
+  const card = board?.find((t) => t.signature === sig);
+  if (card) return card.affectedCustomerIds.length;
+  const m = /(\d+) customers/.exec(`${v.techIssue?.rootCause} ${v.summary}`);
+  return m ? Number(m[1]) : null;
+}
+
+/** Quote length for the injected text shown on a suspicious verdict. */
+export const INJECTION_QUOTE_CHARS = 90;
+const INJECTION_START = /system|ignore (all|previous)|admin mode|override/i;
+
+/** First ~90 chars of the first cited chat message, starting at the injected instruction when one is found. */
+export function injectionQuote(
+  v: Verdict,
+  messages: readonly ChatMessage[],
+): string | null {
+  const byId = new Map(messages.map((m) => [m.id, m.body]));
+  const body = v.evidence.map((e) => byId.get(e.id)).find(Boolean);
+  if (!body) return null;
+  const flat = body.replace(/\s+/g, " ").trim();
+  const at = flat.search(INJECTION_START);
+  const text = at > 0 ? flat.slice(at) : flat;
+  return text.length > INJECTION_QUOTE_CHARS
+    ? `${text.slice(0, INJECTION_QUOTE_CHARS).trimEnd()}…`
+    : text;
+}
+
+export function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? "";
+}

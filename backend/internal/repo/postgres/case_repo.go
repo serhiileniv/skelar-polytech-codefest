@@ -124,16 +124,38 @@ func (t caseTx) OpenTechIssue(ctx context.Context, sig entity.Signature) (*entit
 	return &ti, nil
 }
 
+func (t caseTx) OpenTechIssueForCase(ctx context.Context, caseID string) (*entity.TechIssue, error) {
+	ti, err := scanTech(t.tx.QueryRow(ctx, `SELECT `+techCols+` FROM tech_issues WHERE $1 = ANY(case_ids) AND status <> 'resolved'
+		ORDER BY created_at, id LIMIT 1 FOR UPDATE`, caseID))
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ti, nil
+}
+
+// nonNil keeps NOT NULL array/jsonb columns from receiving SQL NULL.
+func nonNil[T any](s []T) []T {
+	if s == nil {
+		return []T{}
+	}
+	return s
+}
+
 func (t caseTx) NextTechIssueID(ctx context.Context) (string, error) {
 	return seqID(ctx, t.tx, "tech_issue_seq", "tech_")
 }
 
 func (t caseTx) SaveTechIssue(ctx context.Context, ti entity.TechIssue) error {
 	_, err := t.tx.Exec(ctx, `
-		INSERT INTO tech_issues (`+techCols+`) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO tech_issues (`+techCols+`) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (id) DO UPDATE SET evidence_ids = EXCLUDED.evidence_ids, case_ids = EXCLUDED.case_ids,
-			affected_customer_ids = EXCLUDED.affected_customer_ids, status = EXCLUDED.status`,
-		ti.ID, string(ti.Signature), ti.Title, ti.RootCause, ti.EvidenceIDs, ti.CaseIDs, ti.AffectedCustomerIDs, string(ti.Status), ti.CreatedAt)
+			affected_customer_ids = EXCLUDED.affected_customer_ids, status = EXCLUDED.status,
+			evidence = EXCLUDED.evidence, message_ids = EXCLUDED.message_ids`,
+		ti.ID, string(ti.Signature), ti.Title, ti.RootCause, nonNil(ti.EvidenceIDs), nonNil(ti.CaseIDs), nonNil(ti.AffectedCustomerIDs),
+		string(ti.Status), ti.CreatedAt, nonNil(ti.Evidence), nonNil(ti.MessageIDs))
 	return err
 }
 

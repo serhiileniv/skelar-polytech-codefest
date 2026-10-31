@@ -56,7 +56,11 @@ func (s worldStore) Events(_ context.Context, id string) ([]entity.SessionEvent,
 func (s worldStore) Emails(_ context.Context, id string) ([]entity.EmailLog, error) {
 	return only(s.w.Emails, func(x entity.EmailLog) bool { return x.CustomerID == id }), nil
 }
-func (s worldStore) AppendAudit(context.Context, entity.AuditEntry) error { return nil }
+func (s worldStore) Errors(_ context.Context, id string) ([]entity.ErrorLog, error) {
+	return only(s.w.Errors, func(x entity.ErrorLog) bool { return x.CustomerID == id }), nil
+}
+func (s worldStore) ListTechIssues(context.Context) ([]entity.TechIssue, error) { return nil, nil }
+func (s worldStore) AppendAudit(context.Context, entity.AuditEntry) error       { return nil }
 
 func TestMCPSmoke(t *testing.T) {
 	ctx := context.Background()
@@ -85,8 +89,8 @@ func TestMCPSmoke(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list.Tools) != 9 {
-		t.Fatalf("got %d tools, want 9 (4 reads, 4 writes, noteManualStep)", len(list.Tools))
+	if len(list.Tools) != 12 {
+		t.Fatalf("got %d tools, want 12 (6 reads, 5 writes, noteManualStep)", len(list.Tools))
 	}
 	for _, tool := range list.Tools {
 		if tool.Name == usecase.ToolSubmitFixPlan {

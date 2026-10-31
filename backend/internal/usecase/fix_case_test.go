@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -173,6 +174,12 @@ func TestFixToolsRejectDuplicatesAndBadInput(t *testing.T) {
 		{"wrong id field", ToolCancelSubscription, `{"paymentId":"pay_0001","reason":"wrong field"}`, true},
 		{"unknown field", ToolSendMagicLink, `{"reason":"lost","customerId":"cust_002"}`, true},
 		{"bad owner", ToolNoteManualStep, `{"owner":"agent","title":"Do it","detail":"Something"}`, true},
+		{"tech owner rejected", ToolNoteManualStep, `{"owner":"tech","title":"Fix the bug","detail":"Add the key"}`, true},
+		{"support owner rejected", ToolNoteManualStep, `{"owner":"support","title":"Edit config","detail":"Flip the flag"}`, true},
+		{"customer owner", ToolNoteManualStep, `{"owner":"customer","title":"Confirm in Apple ID","detail":"Settings → Subscriptions"}`, false},
+		{"ticket without evidence", ToolCreateTechTicket, `{"title":"Cancel not synced","rootCause":"err_0002 shows the sync timed out.","evidence":[]}`, true},
+		{"ticket", ToolCreateTechTicket, `{"title":"Cancel not synced","rootCause":"err_0002 shows the sync timed out.","signature":"cancel_not_synced","evidence":[{"id":"msg_0001","note":"customer report"}]}`, false},
+		{"second ticket", ToolCreateTechTicket, `{"title":"Cancel again","rootCause":"err_0002 shows the sync timed out.","signature":"cancel_not_synced","evidence":[{"id":"msg_0001","note":"customer report"}]}`, true},
 		{"submit is loop only", ToolSubmitFixPlan, `{}`, true},
 	}
 	for _, tt := range tests {
@@ -182,5 +189,62 @@ func TestFixToolsRejectDuplicatesAndBadInput(t *testing.T) {
 				t.Fatalf("inErr=%v err=%v, wantInErr %v", inErr, err, tt.wantInErr)
 			}
 		})
+	}
+}
+
+func TestFixTicketDryRun(t *testing.T) {
+	supportFix := &entity.Verdict{Outcome: entity.OutcomeSupportCanFix, Summary: "pay_0006 duplicates pay_0005"}
+	input := `{"title":"Renewal retry without idempotency key","rootCause":"err_0003: retry for sub_0006 had no idempotency key and created pay_0006.",
+		"evidence":[{"id":"err_0003","note":"retry without idempotency key"},{"id":"pay_0006","note":"duplicate charge"}]}`
+	tests := []struct {
+		name        string
+		input       string
+		board       []entity.TechIssue
+		wantWouldBe string
+		wantPreview string
+	}{
+		{"err evidence, no open ticket → executed", input, nil, "executed", "err_0003"},
+		{"open ticket for the case → blocked", input, []entity.TechIssue{{ID: "tech_0001", CaseIDs: []string{"case_105"}, Status: entity.TechIssueNew}}, "blocked", "tech_0001"},
+		{"resolved ticket does not count", input, []entity.TechIssue{{ID: "tech_0001", CaseIDs: []string{"case_105"}, Status: entity.TechIssueResolved}}, "executed", "err_0003"},
+		{"no error log cited → blocked", `{"title":"Duplicate charge","rootCause":"pay_0006 duplicates pay_0005 on sub_0006.","signature":"duplicate_charge",
+			"evidence":[{"id":"pay_0006","note":"duplicate charge"}]}`, nil, "blocked", "err_*"},
+		{"another customer's record → blocked", `{"title":"Duplicate charge","rootCause":"err_0003 shows a retry without key.",
+			"evidence":[{"id":"err_0003","note":"retry"},{"id":"pay_0001","note":"not this customer"}]}`, nil, "blocked", "pay_0001"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := storeWithVerdict("case_105", supportFix)
+			store.board = tt.board
+			u := NewFixCase(store, &scriptedModel{}, memory.NewFixPlans(), fixClock)
+			tools, err := u.OpenTools(context.Background(), "case_105")
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, inErr, err := tools.Run(context.Background(), ToolCreateTechTicket, json.RawMessage(tt.input))
+			if err != nil || inErr != nil {
+				t.Fatalf("inErr=%v err=%v", inErr, err)
+			}
+			got := out.Output.(map[string]any)
+			if got["wouldBe"] != tt.wantWouldBe || got["rule"] != entity.RuleTechTicket || !strings.Contains(got["previewMessage"].(string), tt.wantPreview) {
+				t.Fatalf("output %+v", got)
+			}
+		})
+	}
+}
+
+func TestFixTicketInfersSignatureFromErrorLog(t *testing.T) {
+	store := storeWithVerdict("case_105", &entity.Verdict{Outcome: entity.OutcomeSupportCanFix})
+	plans := memory.NewFixPlans()
+	tools, err := NewFixCase(store, &scriptedModel{}, plans, fixClock).OpenTools(context.Background(), "case_105")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, inErr, err := tools.Run(context.Background(), ToolCreateTechTicket, json.RawMessage(
+		`{"title":"Renewal retry without key","rootCause":"err_0003: retry created pay_0006.","evidence":[{"id":"err_0003","note":"retry"}]}`)); err != nil || inErr != nil {
+		t.Fatalf("inErr=%v err=%v", inErr, err)
+	}
+	plan, _ := plans.Update("case_105", func(p entity.FixPlan, _ bool) (entity.FixPlan, error) { return p, nil })
+	if len(plan.Steps) != 1 || plan.Steps[0].Ticket == nil || plan.Steps[0].Ticket.Signature != entity.SignatureDuplicateCharge {
+		t.Fatalf("steps %+v", plan.Steps)
 	}
 }

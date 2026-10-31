@@ -63,6 +63,12 @@ func autoStep(id, target string) entity.FixStep {
 		Action: &entity.SupportAction{Type: entity.ActionRefundPayment, PaymentID: target, Reason: "dup"}}
 }
 
+func ticketStep(id string) entity.FixStep {
+	return entity.FixStep{ID: id, Kind: entity.FixAuto, Owner: entity.OwnerAgent, Tool: ToolCreateTechTicket,
+		Ticket: &entity.TechTicketDraft{Title: "Duplicate renewal", RootCause: "err_0003 shows a retry without idempotency key.",
+			Signature: entity.SignatureDuplicateCharge, Evidence: []entity.Evidence{{ID: "err_0003", Note: "retry without key"}}}}
+}
+
 func proposed(steps ...entity.FixStep) entity.FixPlan {
 	return entity.FixPlan{ID: "plan_1", CaseID: "case_105", Steps: steps, ReplyBody: "Done for you.", Status: entity.PlanProposed}
 }
@@ -87,6 +93,10 @@ func TestApproveFixRunsSelectedStepsInOrder(t *testing.T) {
 			"stopped", []string{"executed", "blocked", "skipped"}, []string{"pay_a", "pay_b"}, false, false, entity.CaseWaitingCustomer},
 		{"manual step open → reply, not resolved", proposed(autoStep("step_1", "pay_a"), manual), []string{"step_1"}, nil,
 			"executed", []string{"executed"}, []string{"pay_a"}, true, false, entity.CaseWaitingCustomer},
+		{"refund + tech ticket, no manual → resolved", proposed(autoStep("step_1", "pay_a"), ticketStep("step_2")), []string{"step_1", "step_2"}, nil,
+			"executed", []string{"executed", "executed"}, []string{"pay_a", "create_tech_ticket", "mark_resolved"}, true, true, entity.CaseResolved},
+		{"tech ticket + customer step → waiting_customer", proposed(ticketStep("step_1"), manual), []string{"step_1"}, nil,
+			"executed", []string{"executed"}, []string{"create_tech_ticket"}, true, false, entity.CaseWaitingCustomer},
 		{"unselected step skipped", proposed(autoStep("step_1", "pay_a"), autoStep("step_2", "pay_b")), []string{"step_2"}, nil,
 			"executed", []string{"skipped", "executed"}, []string{"pay_b", "mark_resolved"}, true, true, entity.CaseResolved},
 	}

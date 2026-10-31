@@ -32,7 +32,7 @@ export function Inbox() {
     );
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  /** Last text inserted from a proposal per case; drives the "Suggested by Verdict" badge. */
+  /** Last text inserted from a proposal per case; drives the "Drafted by Resolly" badge. */
   const [suggestions, setSuggestions] = useState<Record<string, string>>({});
   /** Suggested reply waiting for a click per case; nothing reaches the composer without one. */
   const [proposals, setProposals] = useState<Record<string, Proposal>>({});

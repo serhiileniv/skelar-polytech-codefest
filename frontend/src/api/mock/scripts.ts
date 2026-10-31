@@ -179,7 +179,7 @@ function case102(ctx: ScriptContext): CaseScript {
       outcome: "user_can_fix",
       confidence: 0.88,
       customerGoal: "Reset the account password.",
-      summary: `All 3 password-reset emails were delivered to ${email}. Nothing is broken on our side; they are most likely in spam.`,
+      summary: `All 3 password-reset emails were delivered to ${email}. No bounce and no error logged. Inference: the emails are in spam (delivery records, no bounce).`,
       evidence: mails.map((m) => ({
         id: m.id,
         note: `Reset email delivered to ${email}`,
@@ -190,7 +190,7 @@ function case102(ctx: ScriptContext): CaseScript {
         'Mark the email as "Not spam" and open the newest reset link',
       ],
       replyDraft:
-        "Hi Noah, we can see all three reset emails were delivered to your inbox provider. They most likely landed in spam:",
+        "Hi Noah, we can see all three reset emails were delivered to your inbox provider, with no bounce. Please check spam:",
     },
   };
 }

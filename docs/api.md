@@ -1,4 +1,4 @@
-# API contract — Go backend ↔ frontend
+# API contract — Resolly Go backend ↔ frontend
 
 Version: **v2** · 2026-10-31 · Owners: backend (Go), frontend (Next.js) · v2 = v1 + [Fix-it](#fix-it-v2-additive), additive only
 
@@ -237,9 +237,19 @@ type SupportAction = /* v1 members */
   | { type: "cancel_subscription"; subscriptionId: string; reason: string } // simulated store connector for app_store
   | { type: "send_magic_link"; reason: string };                            // one-time login link, simulated email connector
 
-// ActionResult.rule gains C1, E1. ApiError message for a refused Fix-it start starts with S1 or F1.
+// TechIssue gains (Fix-it createTechTicket; send_to_tech fills evidence from the verdict, messageIds = []):
+interface TechIssue { /* v1 fields */ evidence: { id: string; note: string }[]; messageIds: string[] }
+
+// ActionRequest gains a Fix-it-only kind, run by approve for a createTechTicket step (also accepted by POST …/actions):
+//   | { kind: "create_tech_ticket"; ticket: TechTicket }
+// interface TechTicket { title: string; rootCause: string; signature: Signature; evidence: { id: string; note: string }[] } // 1–8 evidence
+// Its ActionResult has rule T2 and techIssue (the created card, or the open card for the signature with this case added).
+// It does not change the case status.
+
+// ActionResult.rule gains C1, E1, T2. ApiError message for a refused Fix-it start starts with S1 or F1.
 // AuditEntry.step gains: "fix:plan_proposed" (ai), "fix:approved" (support), "fix:completed" | "fix:stopped" (system),
-//   "cancel_subscription", "send_magic_link", "blocked:cancel_subscription", "blocked:send_magic_link".
+//   "cancel_subscription", "send_magic_link", "create_tech_ticket", "blocked:cancel_subscription", "blocked:send_magic_link",
+//   "blocked:create_tech_ticket".
 // Email log template gains "magic_link" (ids mail_r0001…).
 ```
 
@@ -249,6 +259,7 @@ type SupportAction = /* v1 members */
 |---|---|---|
 | **C1** | `cancel_subscription` | The subscription belongs to the case's customer (else A1) and is `active` |
 | **E1** | `send_magic_link` | A `password_reset_requested` event in the last 24h and no `magic_link` email in the last 24h |
+| **T2** | `create_tech_ticket` | Verdict exists (S1 first); every evidence id is the case, its messages or its customer's records; at least one is the customer's error log (`err_*`); no unresolved card already lists the case. Card: same signature → the open card gains this case |
 | **F1** | `POST …/fix`, `/mcp/cases/{id}` | Verdict exists, `outcome` is `user_can_fix` or `support_can_fix`, `downgraded = false`. S1 is checked first |
 
 ### Endpoints
@@ -265,8 +276,10 @@ Approve errors: unknown or replaced plan → 404 `not_found`; already approved �
 ```ts
 type FixToolName =
   | "getCase" | "getBilling" | "getEntitlements" | "getEmailLog"                        // read
+  | "getErrorLogs" | "findSimilarCustomers"                                              // read (as investigate)
   | "cancelSubscription" | "sendMagicLink" | "restoreAccess" | "refundPayment"          // catalog: queue an auto step
-  | "noteManualStep"                                                                     // queue a manual step
+  | "createTechTicket"                                                                   // catalog: queue a tech-board ticket (T2)
+  | "noteManualStep"                                                                     // queue a customer-only manual step
   | "submitFixPlan";                                                                     // final, loop only (not on MCP)
 
 interface FixCapability {
@@ -274,20 +287,25 @@ interface FixCapability {
   actor: "customer" | "support"; // on whose behalf it acts
   label: string;                 // "Cancel subscription"
   description: string;           // one line
-  rule: string;                  // gate rule: C1 | E1 | R1 | P1
+  rule: string;                  // gate rule: C1 | E1 | R1 | P1 | T2
 }
+// createTechTicket input: { title; rootCause; signature?; evidence: {id, note}[] }. signature defaults to the one the
+// first cited error log proves (IDEMPOTENCY_KEY_MISSING → duplicate_charge, GRANT_FAILED → entitlement_grant_failed,
+// CANCEL_SYNC_TIMEOUT → cancel_not_synced), else the verdict's techIssue.
+// Every step support approves is a catalog tool call. Support never gets technical work: a technical root cause is a
+// createTechTicket step; tech decides the fix.
 
 interface FixStep {
   id: string;                    // "step_1"…, unique in the plan
   kind: "auto" | "manual";       // manual steps never execute; they are instructions
-  owner: "agent" | "support" | "customer" | "tech"; // auto → "agent"
+  owner: "agent" | "customer";  // auto → "agent"; manual steps are customer-only (noteManualStep rejects other owners)
   title: string;                 // "Cancel App Store subscription sub_0001 (simulated store connector)"
   detail: string;                // auto: the agent's reason; manual: the instruction
   // auto only:
   tool?: FixToolName;
   actor?: "customer" | "support";
   input?: object;                // the tool input, e.g. { subscriptionId, reason }
-  rule?: string;                 // rule the gate dry run applied (C1, E1, R1, P1, P2, P3, A1, S1)
+  rule?: string;                 // rule the gate dry run applied (C1, E1, R1, P1, P2, P3, A1, S1, T2)
   wouldBe?: "executed" | "blocked";
   previewMessage?: string;       // the gate's reason
 }
@@ -306,7 +324,7 @@ interface FixRunResult {
   status: "executed" | "stopped"; // stopped = a selected step was blocked
   steps: { stepId: string; status: "executed" | "blocked" | "skipped"; result: ActionResult | null }[]; // auto steps, plan order; skipped = not selected or after the block
   replied: boolean;              // reply sent (only when status = executed)
-  resolved: boolean;             // every selected step executed and no manual step in the plan
+  resolved: boolean;             // every selected step executed and no manual step in the plan (a tech ticket does not keep it open)
 }
 ```
 
@@ -339,7 +357,7 @@ Replay: `backend/replay/fix_<caseId>.json` (same format as investigate recording
 
 ## v2 · Ask (additive)
 
-Spec: `docs/specs/copilot-conversation.md`. Support asks Verdict about a stored verdict; answers come only from the case customer's records. Read-only: no action, no audit row.
+Spec: `docs/specs/copilot-conversation.md`. Support asks Resolly about a stored verdict; answers come only from the case customer's records. Read-only: no action, no audit row.
 
 | Method | Path | Request | Response |
 |---|---|---|---|

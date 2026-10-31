@@ -1,6 +1,6 @@
 @frontend/AGENTS.md
 
-# Skelar Polytech Codefest — AI Customer Support Automation
+# Resolly — AI Customer Support Automation (Skelar Polytech Codefest)
 
 Source of truth: `docs/brief/brief.md` (host brief). If code and brief disagree, the brief wins.
 

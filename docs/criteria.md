@@ -1,4 +1,4 @@
-# Criteria → proof
+# Resolly — criteria → proof
 
 Fill the right column once the product is picked. Each row needs a concrete moment in the demo or a file in the repo.
 

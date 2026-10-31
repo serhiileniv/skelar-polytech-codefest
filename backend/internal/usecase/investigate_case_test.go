@@ -20,6 +20,7 @@ type fakeStore struct {
 	scopedTo []string
 	audit    []entity.AuditEntry
 	saved    map[string]entity.Verdict
+	board    []entity.TechIssue
 }
 
 func newFakeStore() *fakeStore {
@@ -78,6 +79,7 @@ func (f *fakeStore) Emails(_ context.Context, id string) ([]entity.EmailLog, err
 	f.scope(id)
 	return pick(f.w.Emails, func(e entity.EmailLog) bool { return e.CustomerID == id }), nil
 }
+func (f *fakeStore) ListTechIssues(context.Context) ([]entity.TechIssue, error) { return f.board, nil }
 func (f *fakeStore) HelpArticles(context.Context) ([]entity.HelpArticle, error) { return f.w.Help, nil }
 func (f *fakeStore) Billing(context.Context) (entity.Billing, error) {
 	return entity.Billing{Subscriptions: f.w.Subscriptions, Payments: f.w.Payments, Entitlements: f.w.Entitlements}, nil

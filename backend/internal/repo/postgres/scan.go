@@ -24,7 +24,7 @@ const (
 	payCols   = `id, customer_id, subscription_id, channel, amount_usd::float8, status, at`
 	entCols   = `id, customer_id, account_email, active, payment_id, granted_at`
 	custCols  = `id, name, email, platform, app_version, country, created_at`
-	techCols  = `id, signature, title, root_cause, evidence_ids, case_ids, affected_customer_ids, status, created_at`
+	techCols  = `id, signature, title, root_cause, evidence_ids, case_ids, affected_customer_ids, status, created_at, evidence, message_ids`
 	auditCols = `id, case_id, actor, step, detail, at`
 )
 
@@ -70,7 +70,7 @@ func scanCustomer(r pgx.Row) (entity.Customer, error) {
 
 func scanTech(r pgx.Row) (entity.TechIssue, error) {
 	var t entity.TechIssue
-	err := r.Scan(&t.ID, &t.Signature, &t.Title, &t.RootCause, &t.EvidenceIDs, &t.CaseIDs, &t.AffectedCustomerIDs, &t.Status, &t.CreatedAt)
+	err := r.Scan(&t.ID, &t.Signature, &t.Title, &t.RootCause, &t.EvidenceIDs, &t.CaseIDs, &t.AffectedCustomerIDs, &t.Status, &t.CreatedAt, &t.Evidence, &t.MessageIDs)
 	return t, err
 }
 

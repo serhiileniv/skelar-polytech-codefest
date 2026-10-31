@@ -80,14 +80,13 @@ const (
 	FixManual FixStepKind = "manual"
 )
 
-// FixOwner is who carries out a step: the agent (auto) or a human (manual).
+// FixOwner is who carries out a step: the agent (auto, approved by support) or the customer (manual).
+// Support and tech never get manual steps: technical work goes to the tech board via createTechTicket.
 type FixOwner string
 
 const (
 	OwnerAgent    FixOwner = "agent"
-	OwnerSupport  FixOwner = "support"
 	OwnerCustomer FixOwner = "customer"
-	OwnerTech     FixOwner = "tech"
 )
 
 // FixActor is on whose behalf an auto step acts.
@@ -100,18 +99,19 @@ const (
 
 // FixStep is one entry of a plan. Auto steps carry the tool, its input and the gate dry run.
 type FixStep struct {
-	ID             string         `json:"id"`
-	Kind           FixStepKind    `json:"kind"`
-	Owner          FixOwner       `json:"owner"`
-	Title          string         `json:"title"`
-	Detail         string         `json:"detail"`
-	Tool           string         `json:"tool,omitempty"`
-	Actor          FixActor       `json:"actor,omitempty"`
-	Input          map[string]any `json:"input,omitempty"`
-	Rule           string         `json:"rule,omitempty"`
-	WouldBe        string         `json:"wouldBe,omitempty"` // executed | blocked
-	PreviewMessage string         `json:"previewMessage,omitempty"`
-	Action         *SupportAction `json:"-"` // what approve runs through ExecuteAction
+	ID             string           `json:"id"`
+	Kind           FixStepKind      `json:"kind"`
+	Owner          FixOwner         `json:"owner"`
+	Title          string           `json:"title"`
+	Detail         string           `json:"detail"`
+	Tool           string           `json:"tool,omitempty"`
+	Actor          FixActor         `json:"actor,omitempty"`
+	Input          map[string]any   `json:"input,omitempty"`
+	Rule           string           `json:"rule,omitempty"`
+	WouldBe        string           `json:"wouldBe,omitempty"` // executed | blocked
+	PreviewMessage string           `json:"previewMessage,omitempty"`
+	Action         *SupportAction   `json:"-"` // what approve runs through ExecuteAction
+	Ticket         *TechTicketDraft `json:"-"` // createTechTicket: the card approve creates
 }
 
 type FixPlanStatus string
@@ -219,8 +219,8 @@ func (d FixPlanDraft) Check() error {
 // Check validates a noteManualStep input.
 func (d ManualStepDraft) Check() error {
 	var ownerErr error
-	if d.Owner != OwnerSupport && d.Owner != OwnerCustomer && d.Owner != OwnerTech {
-		ownerErr = errors.New("owner must be support, customer or tech")
+	if d.Owner != OwnerCustomer {
+		ownerErr = errors.New("owner must be customer: manual steps are only for the customer. Support only approves catalog tool calls; for a technical root cause call createTechTicket with the evidence")
 	}
 	return errors.Join(ownerErr, lengthErr("title", d.Title, 3, 120), lengthErr("detail", d.Detail, 3, 500))
 }

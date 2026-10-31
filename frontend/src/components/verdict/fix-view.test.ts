@@ -61,16 +61,8 @@ describe("ownerLabel", () => {
     [auto("a", "customer"), "I'll do this for the customer"],
     [auto("a", "support"), "I'll do this as support"],
     [
-      { id: "m", kind: "manual", owner: "support", title: "", detail: "" },
-      "You",
-    ],
-    [
       { id: "m", kind: "manual", owner: "customer", title: "", detail: "" },
       "Customer",
-    ],
-    [
-      { id: "m", kind: "manual", owner: "tech", title: "", detail: "" },
-      "Tech team",
     ],
   ])("%#", (step, label) => {
     expect(ownerLabel(step)).toBe(label);

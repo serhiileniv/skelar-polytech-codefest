@@ -13,7 +13,8 @@ import {
   DowngradedNotice,
   NextStep,
   SummaryText,
-  SuspiciousBanner,
+  SuspiciousNotice,
+  TechNotice,
   VerdictHeader,
   type VerdictCardProps,
 } from "./verdict-card";
@@ -57,7 +58,7 @@ export function SupportBubble({ children }: { children: React.ReactNode }) {
 }
 
 export function TypingDots({
-  label = "Verdict is typing",
+  label = "Resolly is typing",
 }: {
   label?: string;
 }) {
@@ -74,12 +75,18 @@ export function TypingDots({
   );
 }
 
-/** Final call: "My call: Tech team · 91% confident", one summary, evidence on demand, then the next step. */
+/** Final call: "Finding: Tech team · 91% confidence", one summary, evidence on demand, then the next step. */
 export function VerdictBubble({
   verdict,
+  affectedCount = null,
+  injectionQuote = null,
   children,
 }: {
   verdict: Verdict;
+  /** Tech-team headline number. */
+  affectedCount?: number | null;
+  /** Suspicious: the injected text, already clamped. */
+  injectionQuote?: string | null;
   /** The next step, rendered as the card's last section. */
   children?: React.ReactNode;
 }) {
@@ -88,12 +95,11 @@ export function VerdictBubble({
   const n = verdict.evidence.length;
   return (
     <article className="copilot-bubble-in overflow-hidden rounded-lg border border-zinc-200 bg-white">
-      <VerdictHeader verdict={verdict} prefix="My call: " />
+      <VerdictHeader verdict={verdict} prefix="Finding: " />
       <div className="divide-y divide-zinc-100 [&>*]:px-4 [&>*]:py-3">
-        {(verdict.downgraded || verdict.outcome === "suspicious") && (
-          <div className="space-y-2">
-            {verdict.downgraded && <DowngradedNotice verdict={verdict} />}
-            {verdict.outcome === "suspicious" && <SuspiciousBanner />}
+        {verdict.downgraded && (
+          <div>
+            <DowngradedNotice verdict={verdict} />
           </div>
         )}
         <div className="space-y-1.5">
@@ -136,6 +142,19 @@ export function VerdictBubble({
             </details>
           )}
         </div>
+        {verdict.outcome === "suspicious" && (
+          <div>
+            <SuspiciousNotice quote={injectionQuote} />
+          </div>
+        )}
+        {verdict.outcome === "tech_team" && verdict.techIssue && (
+          <div>
+            <TechNotice
+              count={affectedCount}
+              signature={verdict.techIssue.signature}
+            />
+          </div>
+        )}
         {children}
       </div>
     </article>

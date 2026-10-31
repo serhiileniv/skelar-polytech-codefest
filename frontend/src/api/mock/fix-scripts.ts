@@ -183,28 +183,49 @@ function case105(ctx: Ctx): FixScript {
       getBilling(ctx, "Confirming pay_0006 duplicates pay_0005."),
     ],
     problem:
-      "pay_0006 is a duplicate of pay_0005 charged 40 s later by a retry without an idempotency key (err_0003).",
-    summary:
-      "Refund the duplicate, tell the customer, and hand the retry bug to the tech team.",
+      "Needed: refund duplicate pay_0006 ($29.99, 40 s after pay_0005); ticket for err_0003 (retry without idempotency key).",
+    summary: "I can do 2 of 2; customer does nothing.",
     steps: [
       {
         kind: "auto",
         tool: "refundPayment",
         actor: "support",
-        title: "Refund duplicate charge pay_0006",
-        detail: "$29.99 back to the card.",
+        title: "Refund pay_0006 ($29.99)",
+        detail: "Duplicate of pay_0005 on sub_0006.",
         input: { paymentId: "pay_0006", reason: "Duplicate of pay_0005" },
         text: "Queuing the refund of the duplicate.",
       },
       {
-        kind: "manual",
-        owner: "tech",
-        title: "Add an idempotency key to payment retries",
-        detail: "Root cause of the duplicate (err_0003).",
+        kind: "auto",
+        tool: "createTechTicket",
+        actor: "support",
+        title: "Create tech ticket: duplicate charge",
+        detail: "err_0003: retry without idempotency key created pay_0006.",
+        input: {
+          title: "Renewal retries charge twice without an idempotency key",
+          rootCause:
+            "err_0003: the renewal retry for sub_0006 had no idempotency key and created duplicate pay_0006, 40 s after pay_0005.",
+          signature: "duplicate_charge",
+          evidence: [
+            {
+              id: "err_0003",
+              note: "Retry for sub_0006 sent without idempotency key.",
+            },
+            {
+              id: "pay_0005",
+              note: "$29.99 renewal on sub_0006, the valid charge.",
+            },
+            {
+              id: "pay_0006",
+              note: "$29.99 duplicate on sub_0006, 40 s later.",
+            },
+          ],
+        },
+        text: "err_0003 is a billing bug; the ticket hands it to tech with the evidence.",
       },
     ],
     replyBody:
-      "Hi Ava, you're right, you were charged twice by mistake. We've refunded the duplicate $29.99; it'll show on your card in 3–5 business days.",
+      "Hi Ava, you were charged twice: pay_0006 duplicates your $29.99 renewal. We will refund the duplicate $29.99; it shows on your card in 3–5 business days. Our tech team gets the cause with the details.",
   };
 }
 

@@ -10,7 +10,11 @@ import { Avatar, SupportAvatar } from "./avatar";
 import { useEvidenceFocus } from "./evidence-focus";
 import { StatusDot } from "./outcome-badge";
 import { formatTime } from "./time";
-import { SuggestedReplyCard, type Proposal } from "./suggested-reply-card";
+import {
+  SuggestedReplyCard,
+  recordsLabel,
+  type Proposal,
+} from "./suggested-reply-card";
 import { useTypewriter } from "./use-typewriter";
 
 interface ChatThreadProps {
@@ -20,7 +24,7 @@ interface ChatThreadProps {
   suggested: boolean;
   /** Last text inserted from a proposal; Insert asks first when the draft differs from it. */
   lastSuggestion: string | undefined;
-  /** Pending suggested reply, shown above the composer until Insert or Dismiss. */
+  /** Pending reply draft, shown above the composer until Insert or Dismiss. */
   proposal: Proposal | null;
   onProposalInsert: (text: string, how: "replace" | "append") => void;
   onProposalDismiss: () => void;
@@ -40,6 +44,7 @@ export function ChatThread({
   onSend,
 }: ChatThreadProps) {
   const { case: c, customer } = detail;
+  const records = c.verdict?.evidence.length ?? 0;
   const scrollRef = useRef<HTMLDivElement>(null);
   const { focusedId } = useEvidenceFocus();
   const [sending, setSending] = useState(false);
@@ -137,6 +142,7 @@ export function ChatThread({
             proposal={proposal}
             draft={draft}
             lastSuggestion={lastSuggestion}
+            records={records}
             onInsert={onProposalInsert}
             onDismiss={onProposalDismiss}
           />
@@ -151,7 +157,7 @@ export function ChatThread({
         >
           {suggested && (
             <div className="px-3 pt-2.5 text-[12px] leading-4 font-medium text-indigo-700">
-              Suggested by Verdict
+              Drafted by Resolly from {recordsLabel(records)}
             </div>
           )}
           <textarea

@@ -3,12 +3,20 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 
-import { api, errorMessage, type CaseStatus, type Verdict } from "@/api";
+import {
+  api,
+  errorMessage,
+  type CaseStatus,
+  type ChatMessage,
+  type TechIssue,
+  type Verdict,
+} from "@/api";
 import { cn } from "@/lib/utils";
 
 import { AskVerdict } from "./ask-verdict";
 import { Proposal, VerdictBubble } from "./conversation";
-import { GhostButton, SecondaryButton } from "./controls";
+import { affectedCount, firstName, injectionQuote } from "./conversation-view";
+import { ActionHint, GhostButton, SecondaryButton } from "./controls";
 import { INITIAL_TRACE, traceReducer } from "./investigate-trace";
 import { serverMayStillRun } from "./run-recovery";
 import { RunSteps } from "./trace";
@@ -24,6 +32,9 @@ interface InvestigatePanelProps {
   caseId: string;
   caseStatus: CaseStatus;
   storedVerdict: Verdict | null;
+  customerName: string;
+  /** Chat messages; the suspicious notice quotes the cited one. */
+  messages: readonly ChatMessage[];
   /** Shows the "Suggested reply" card; the composer is only filled on the agent's click. */
   onPropose: (text: string) => void;
   onChanged: () => void;
@@ -41,6 +52,8 @@ export function InvestigatePanel({
   caseId,
   caseStatus,
   storedVerdict,
+  customerName,
+  messages,
   onPropose,
   onChanged,
 }: InvestigatePanelProps) {
@@ -126,6 +139,8 @@ export function InvestigatePanel({
     (waiting || (started && !trace.error) ? null : storedVerdict);
   const showSteps = started && !(trace.error && trace.items.length === 0);
   const idle = !verdict && !started && !waiting && !error;
+  const board = useTechBoard(verdict?.outcome === "tech_team");
+  const affected = verdict ? affectedCount(verdict, board) : null;
 
   const rerun =
     verdict && !running && !waiting && !confirmRerun ? (
@@ -158,8 +173,13 @@ export function InvestigatePanel({
 
         {idle && (
           <div className="space-y-2.5 rounded-lg border border-dashed border-indigo-200 bg-white/70 p-4">
+            <h3 className="text-[15px] leading-5 font-semibold tracking-[-0.01em] text-zinc-900">
+              Find out what happened
+            </h3>
             <p className="text-[13px] leading-5 text-zinc-700">
-              I&apos;ll read the account and tell you who can fix this.
+              I&apos;ll read the chat, billing, access and logs for{" "}
+              {firstName(customerName) || "this customer"}, then make a call you
+              can act on.
             </p>
             <SecondaryButton onClick={() => void investigate()}>
               Investigate
@@ -195,6 +215,12 @@ export function InvestigatePanel({
           )
         )}
 
+        {(running || waiting) && (
+          <ActionHint>
+            Read only. Nothing changes for the customer until you click.
+          </ActionHint>
+        )}
+
         {waiting && (
           <p role="status" className="text-[13px] leading-5 text-zinc-500">
             Still running on the server…
@@ -221,8 +247,13 @@ export function InvestigatePanel({
             ref={verdictRef}
             className={cn("scroll-mt-3", verdict === fresh && ENTER)}
           >
-            <VerdictBubble verdict={verdict}>
+            <VerdictBubble
+              verdict={verdict}
+              affectedCount={affected}
+              injectionQuote={injectionQuote(verdict, messages)}
+            >
               <Proposal
+                affectedCount={affected}
                 key={verdict.createdAt}
                 animate={verdict === fresh}
                 caseId={caseId}
@@ -241,4 +272,22 @@ export function InvestigatePanel({
       )}
     </div>
   );
+}
+
+/** Tech board, fetched once per mount while a tech-team verdict is shown; null until loaded or on error. */
+function useTechBoard(enabled: boolean): TechIssue[] | null {
+  const [board, setBoard] = useState<TechIssue[] | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    api
+      .board()
+      .then((b) => live && setBoard(b))
+      // The count falls back to the verdict text; no toast for a side fetch.
+      .catch(() => live && setBoard(null));
+    return () => {
+      live = false;
+    };
+  }, [enabled]);
+  return enabled ? board : null;
 }

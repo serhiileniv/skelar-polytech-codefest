@@ -137,6 +137,8 @@ type TechIssue struct {
 	Title               string          `json:"title"`
 	RootCause           string          `json:"rootCause"`
 	EvidenceIDs         []string        `json:"evidenceIds"`
+	Evidence            []Evidence      `json:"evidence"`   // id + one-line note (createTechTicket; send_to_tech copies the verdict's)
+	MessageIDs          []string        `json:"messageIds"` // chat history of the cases on the card
 	CaseIDs             []string        `json:"caseIds"`
 	AffectedCustomerIDs []string        `json:"affectedCustomerIds"`
 	Status              TechIssueStatus `json:"status"`

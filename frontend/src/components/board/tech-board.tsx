@@ -67,7 +67,7 @@ export function TechBoard() {
           </span>
         </div>
         <p className="mt-0.5 text-[13px] text-zinc-500">
-          Root causes found by Verdict investigations, merged by signature
+          Root causes found by Resolly investigations, merged by signature
         </p>
         {error && <p className="mt-1 text-[13px] text-[#b42318]">{error}</p>}
       </header>
@@ -151,13 +151,40 @@ function IssueCard({ issue }: { issue: TechIssue }) {
           ids={shown}
           extra={more > 0 ? `+${more} more` : undefined}
         />
-        <ChipRow label="Evidence" ids={issue.evidenceIds} />
+        {(issue.evidence ?? []).length > 0 ? (
+          <EvidenceList evidence={issue.evidence} />
+        ) : (
+          <ChipRow label="Evidence" ids={issue.evidenceIds} />
+        )}
+        <ChipRow label="Messages" ids={issue.messageIds ?? []} />
       </div>
 
       <div className="text-[12px] text-zinc-500 tabular-nums">
         {issue.id} · created {formatTime(issue.createdAt)}
       </div>
     </article>
+  );
+}
+
+/** Cited records with the agent's one-line note (createTechTicket cards). */
+function EvidenceList({ evidence }: { evidence: TechIssue["evidence"] }) {
+  return (
+    <div>
+      <div className="mb-1.5 text-[12px] leading-4 font-medium text-zinc-500">
+        Evidence
+      </div>
+      <ul className="space-y-1">
+        {evidence.map((e) => (
+          <li
+            key={e.id}
+            className="flex items-baseline gap-1.5 text-[12px] leading-4 text-zinc-700"
+          >
+            <IdChip id={e.id} />
+            <span>{e.note}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

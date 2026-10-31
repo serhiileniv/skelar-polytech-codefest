@@ -68,6 +68,8 @@ export function CopilotPane({
           caseId={detail.case.id}
           caseStatus={detail.case.status}
           storedVerdict={detail.case.verdict}
+          customerName={detail.customer.name}
+          messages={detail.case.messages}
           onPropose={onPropose}
           onChanged={onChanged}
         />

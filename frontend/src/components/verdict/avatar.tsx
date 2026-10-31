@@ -54,7 +54,7 @@ function AvatarImage({ src, size }: { src: string; size: AvatarSize }) {
   );
 }
 
-/** Verdict brand mark: accent rounded square with a "V" glyph. */
+/** Resolly brand mark: accent rounded square with an "R" glyph. */
 export function VerdictMark({ size = 20 }: { size?: 16 | 20 }) {
   return (
     <span
@@ -66,7 +66,7 @@ export function VerdictMark({ size = 20 }: { size?: 16 | 20 }) {
           : "size-4 rounded-[4px] text-[9.5px]",
       )}
     >
-      V
+      R
     </span>
   );
 }

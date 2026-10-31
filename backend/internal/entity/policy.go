@@ -33,6 +33,7 @@ type CustomerRecords struct {
 	Subscriptions []Subscription // C1
 	Events        []SessionEvent // E1
 	Emails        []EmailLog     // E1
+	Errors        []ErrorLog     // T2
 	Now           time.Time      // clock for time-window rules (E1); set by the use case
 }
 

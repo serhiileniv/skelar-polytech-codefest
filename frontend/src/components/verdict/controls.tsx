@@ -93,3 +93,18 @@ export function Field({
     </section>
   );
 }
+
+/** Muted line under the primary action: what the click does. */
+export function ActionHint({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <p className={cn("text-[12px] leading-4 text-zinc-500", className)}>
+      {children}
+    </p>
+  );
+}

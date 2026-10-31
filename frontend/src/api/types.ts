@@ -105,12 +105,22 @@ export interface AuditEntry {
   at: string;
 }
 
+/** A cited record with a one-line note. */
+export interface Evidence {
+  id: string;
+  note: string;
+}
+
 export interface TechIssue {
   id: string;
   signature: Signature;
   title: string;
   rootCause: string;
   evidenceIds: string[];
+  /** v2: cited records with a one-line note each. */
+  evidence: Evidence[];
+  /** v2: chat history ids of the cases on the card. */
+  messageIds: string[];
   caseIds: string[];
   affectedCustomerIds: string[];
   status: "new" | "in_progress" | "resolved";
@@ -139,7 +149,16 @@ export interface CaseDetail {
 export type ActionRequest =
   | { kind: "support_action"; action: SupportAction }
   | { kind: "send_to_tech" }
-  | { kind: "mark_resolved" };
+  | { kind: "mark_resolved" }
+  | { kind: "create_tech_ticket"; ticket: TechTicket };
+
+/** v2 Fix-it `createTechTicket` input after the backend resolves the signature (rule T2). */
+export interface TechTicket {
+  title: string;
+  rootCause: string;
+  signature: Signature;
+  evidence: Evidence[];
+}
 
 export interface ActionResult {
   status: "executed" | "blocked";
@@ -204,10 +223,13 @@ export type FixToolName =
   | "getBilling"
   | "getEntitlements"
   | "getEmailLog"
+  | "getErrorLogs"
+  | "findSimilarCustomers"
   | "cancelSubscription"
   | "sendMagicLink"
   | "restoreAccess"
   | "refundPayment"
+  | "createTechTicket"
   | "noteManualStep"
   | "submitFixPlan";
 
@@ -216,7 +238,11 @@ export type FixActor = "customer" | "support";
 
 /** A write Fix-it can queue; also `FixAutoStep.tool`. */
 export type FixWriteTool =
-  "cancelSubscription" | "sendMagicLink" | "restoreAccess" | "refundPayment";
+  | "cancelSubscription"
+  | "sendMagicLink"
+  | "restoreAccess"
+  | "refundPayment"
+  | "createTechTicket";
 
 /** One entry of `GET /api/fix/capabilities`: what Fix-it can do. */
 export interface FixCapability {
@@ -242,11 +268,11 @@ export interface FixAutoStep {
   previewMessage: string;
 }
 
-/** Something Fix-it cannot do; a person has to. */
+/** Something only the customer can do. Support never gets manual work; technical issues are `createTechTicket` steps. */
 export interface FixManualStep {
   id: string;
   kind: "manual";
-  owner: "support" | "customer" | "tech";
+  owner: "customer";
   title: string;
   detail: string;
 }

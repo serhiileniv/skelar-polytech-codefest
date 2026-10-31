@@ -40,8 +40,8 @@ describe("mock client ask", () => {
   });
 
   it.each([
-    ["case_104", "Why this outcome?", /Tech team/, "err_0002"],
-    ["case_103", "What evidence?", /3 records/, "pay_0003"],
+    ["case_104", "Show the evidence chain", /Tech team/, "err_0002"],
+    ["case_103", "Which records prove it?", /3 records/, "pay_0003"],
     ["case_105", "What if I refund?", /exactly what I propose/, "pay_"],
     ["case_103", "What if I refund?", /does not fix/, "err_0001"],
     ["case_107", "What if I refund?", /S1/, ""],

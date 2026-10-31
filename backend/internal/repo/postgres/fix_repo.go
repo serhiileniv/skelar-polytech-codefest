@@ -30,6 +30,14 @@ func fixRecords(ctx context.Context, tx pgx.Tx, customerID string, recs entity.C
 		var e entity.EmailLog
 		return e, row.Scan(&e.ID, &e.CustomerID, &e.To, &e.Template, &e.Status, &e.At)
 	})
+	if err != nil {
+		return recs, err
+	}
+	rows, err = tx.Query(ctx, `SELECT id, coalesce(customer_id, ''), service, code, message, app_version, at FROM error_logs WHERE customer_id = $1 ORDER BY at, id`, customerID)
+	recs.Errors, err = collect(rows, err, func(row pgx.Rows) (entity.ErrorLog, error) {
+		var e entity.ErrorLog
+		return e, row.Scan(&e.ID, &e.CustomerID, &e.Service, &e.Code, &e.Message, &e.AppVersion, &e.At)
+	})
 	return recs, err
 }
 

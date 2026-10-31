@@ -16,7 +16,7 @@ import {
 } from "@/api";
 import { cn } from "@/lib/utils";
 
-import { GhostButton, PrimaryButton, RuleChip } from "./controls";
+import { ActionHint, GhostButton, PrimaryButton, RuleChip } from "./controls";
 import {
   capabilityGroups,
   defaultSelection,
@@ -126,6 +126,12 @@ export function FixPanel({
           </PrimaryButton>
         )}
         {children}
+        {!closed && (
+          <ActionHint className="w-full">
+            Plans the fix with the app&apos;s tools and drafts the reply. You
+            approve before anything runs.
+          </ActionHint>
+        )}
       </div>
     );
 

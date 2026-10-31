@@ -66,13 +66,32 @@ const FLOWS: FlowCase[] = [
   },
   {
     id: "case_105",
-    tools: ["refundPayment"],
-    actions: ["refund_payment"],
-    rules: ["P1"],
-    manualOwners: ["tech"],
-    resolved: false,
+    tools: ["refundPayment", "createTechTicket"],
+    actions: ["refund_payment", "create_tech_ticket"],
+    rules: ["P1", "T2"],
+    manualOwners: [],
+    resolved: true,
   },
 ];
+
+describe("mock createTechTicket (T2)", () => {
+  it("case_105 approve puts a ticket card with evidence and messages on the board", async () => {
+    const client = await investigated("case_105");
+    const { plan } = await fix(client, "case_105");
+
+    await client.approveFix("case_105", plan.id, autoIds(plan));
+
+    const [card] = await client.board();
+    expect(card).toMatchObject({
+      signature: "duplicate_charge",
+      caseIds: ["case_105"],
+      evidenceIds: ["err_0003", "pay_0005", "pay_0006"],
+    });
+    expect(card.evidence[0].note).toContain("idempotency");
+    expect(card.messageIds.length).toBeGreaterThan(0);
+    expect(card.affectedCustomerIds.length).toBeGreaterThan(0);
+  });
+});
 
 describe("mock fix flows", () => {
   it.each(FLOWS)(
@@ -178,7 +197,7 @@ describe("mock fix flows", () => {
       replied: false,
       resolved: false,
     });
-    expect(result.steps.map((s) => s.status)).toEqual(["blocked"]);
+    expect(result.steps.map((s) => s.status)).toEqual(["blocked", "skipped"]);
     expect(result.steps[0].result?.rule).toBe("P3");
     const audit = (await client.getCase("case_105")).audit.map((a) => a.step);
     expect(audit).toContain("fix:stopped");
@@ -234,6 +253,7 @@ describe("mock fix flows", () => {
       "customer:sendMagicLink:E1",
       "support:restoreAccess:R1",
       "support:refundPayment:P1",
+      "support:createTechTicket:T2",
     ]);
   });
 });

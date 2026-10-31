@@ -100,7 +100,7 @@ func (u *ApproveFix) runSteps(ctx context.Context, caseID string, plan entity.Fi
 			res.Steps = append(res.Steps, entity.FixStepRun{StepID: s.ID, Status: "skipped"})
 			continue
 		}
-		out, err := u.actions.Execute(ctx, caseID, entity.ActionRequest{Kind: entity.KindSupportAction, Action: s.Action})
+		out, err := u.actions.Execute(ctx, caseID, stepRequest(s))
 		if err != nil {
 			return res, err
 		}
@@ -110,6 +110,14 @@ func (u *ApproveFix) runSteps(ctx context.Context, caseID string, plan entity.Fi
 		}
 	}
 	return res, nil
+}
+
+// stepRequest is the ExecuteAction request an auto step runs.
+func stepRequest(s entity.FixStep) entity.ActionRequest {
+	if s.Ticket != nil {
+		return entity.ActionRequest{Kind: entity.KindTechTicket, Ticket: s.Ticket}
+	}
+	return entity.ActionRequest{Kind: entity.KindSupportAction, Action: s.Action}
 }
 
 // finish replies, then resolves or keeps the case open, and audits the outcome.

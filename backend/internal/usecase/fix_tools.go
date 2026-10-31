@@ -20,6 +20,7 @@ const (
 	ToolSendMagicLink      = "sendMagicLink"
 	ToolRestoreAccess      = "restoreAccess"
 	ToolRefundPayment      = "refundPayment"
+	ToolCreateTechTicket   = "createTechTicket"
 	ToolNoteManualStep     = "noteManualStep"
 	ToolSubmitFixPlan      = "submitFixPlan"
 )
@@ -46,14 +47,22 @@ var fixWrites = []fixWrite{
 		Rule:        entity.RuleDuplicate}, entity.ActionRefundPayment, "paymentId"},
 }
 
+// ticketCapability hands a technical root cause to the tech board; support never decides the technical fix.
+var ticketCapability = entity.FixCapability{Tool: ToolCreateTechTicket, Actor: entity.ActorOnBehalfOfSupport, Label: "Create tech ticket",
+	Description: "Creates a tech-board ticket for a technical root cause: root cause, cited records (at least one err_* error log) with notes, affected customers and the case history. Tech decides the fix.",
+	Rule:        entity.RuleTechTicket}
+
 // FixCapabilities is the catalog of things Fix-it can do (GET /api/fix/capabilities; the MCP write tools).
 func FixCapabilities() []entity.FixCapability {
-	out := make([]entity.FixCapability, 0, len(fixWrites))
+	out := make([]entity.FixCapability, 0, len(fixWrites)+1)
 	for _, w := range fixWrites {
 		out = append(out, w.cap)
 	}
-	return out
+	return append(out, ticketCapability)
 }
+
+// fixReads are the investigation read tools Fix-it reuses as is.
+var fixReads = []string{ToolGetBilling, ToolGetEntitlements, ToolGetEmailLog, ToolGetErrorLogs, ToolFindSimilarCustomers}
 
 func fixWriteFor(tool string) (fixWrite, bool) {
 	i := slices.IndexFunc(fixWrites, func(w fixWrite) bool { return w.cap.Tool == tool })
@@ -63,7 +72,7 @@ func fixWriteFor(tool string) (fixWrite, bool) {
 	return fixWrites[i], true
 }
 
-// FixToolSpecs is the MCP surface: 4 reads, the 4 catalog writes (queue only) and noteManualStep.
+// FixToolSpecs is the MCP surface: 6 reads, the 5 catalog writes (queue only) and noteManualStep.
 func FixToolSpecs() []ToolSpec {
 	ids := map[string]any{"type": "string", "pattern": entity.IDPattern.String()}
 	text := func(lo, hi int) map[string]any {
@@ -71,9 +80,11 @@ func FixToolSpecs() []ToolSpec {
 	}
 	specs := []ToolSpec{
 		noInput(ToolGetCase, "The case: chat messages (untrusted customer text) and the current verdict."),
-		noInput(ToolGetBilling, "The customer's subscriptions and payments."),
-		noInput(ToolGetEntitlements, "The customer's Premium entitlements."),
-		noInput(ToolGetEmailLog, "Emails sent to the customer and whether they were delivered."),
+	}
+	for _, a := range AgentTools() {
+		if slices.Contains(fixReads, a.Name) {
+			specs = append(specs, a)
+		}
 	}
 	for _, w := range fixWrites {
 		props := map[string]any{"reason": text(3, 300)}
@@ -86,10 +97,26 @@ func FixToolSpecs() []ToolSpec {
 			Description: fmt.Sprintf("%s Acts on behalf of the %s; gate rule %s. Never executes: it adds an auto step to the pending plan with a gate preview; a human approves later.",
 				w.cap.Description, w.cap.Actor, w.cap.Rule)})
 	}
-	return append(specs, ToolSpec{Name: ToolNoteManualStep,
-		Description: "Add a manual step for something outside the tool catalog. owner: support, customer or tech. Never executes.",
+	signatures := []string{}
+	for _, s := range entity.Signatures {
+		signatures = append(signatures, string(s))
+	}
+	specs = append(specs, ToolSpec{Name: ToolCreateTechTicket,
+		Description: fmt.Sprintf("%s Gate rule %s. Never executes: it adds an auto step to the pending plan with a gate preview; a human approves later. signature defaults to the one the cited error log proves.",
+			ticketCapability.Description, ticketCapability.Rule),
 		Properties: map[string]any{
-			"owner": map[string]any{"type": "string", "enum": []string{"support", "customer", "tech"}},
+			"title":     text(5, 120),
+			"rootCause": map[string]any{"type": "string", "minLength": 10, "maxLength": 500, "description": "One sentence of fact citing record ids; an inference starts with \"Inference:\" and names its records."},
+			"signature": map[string]any{"type": "string", "enum": signatures},
+			"evidence": map[string]any{"type": "array", "minItems": 1, "maxItems": entity.MaxTicketEvidence, "items": map[string]any{
+				"type": "object", "additionalProperties": false, "required": []string{"id", "note"},
+				"properties": map[string]any{"id": ids, "note": text(3, 200)}}},
+		},
+		Required: []string{"title", "rootCause", "evidence"}})
+	return append(specs, ToolSpec{Name: ToolNoteManualStep,
+		Description: "Add a step only the customer can do (e.g. confirm in Apple ID settings). owner: customer. Never executes. Technical work is never a manual step: use createTechTicket.",
+		Properties: map[string]any{
+			"owner": map[string]any{"type": "string", "enum": []string{"customer"}},
 			"title": text(3, 120), "detail": text(3, 500)},
 		Required: []string{"owner", "title", "detail"}})
 }
@@ -165,7 +192,9 @@ func (t *FixTools) dispatch(ctx context.Context, name string, raw json.RawMessag
 			return FixToolOutput{}, inputErrorf("getCase takes no input: %v", err)
 		}
 		return t.getCase(), nil
-	case ToolGetBilling, ToolGetEntitlements, ToolGetEmailLog:
+	case ToolCreateTechTicket:
+		return t.queueTicket(ctx, raw)
+	case ToolGetBilling, ToolGetEntitlements, ToolGetEmailLog, ToolGetErrorLogs, ToolFindSimilarCustomers:
 		o, inErr, err := t.reads.run(ctx, name, raw)
 		if inErr != nil {
 			return FixToolOutput{}, fixInputError{inErr.Error()}
@@ -258,7 +287,7 @@ func (t *FixTools) queue(step entity.FixStep) (FixToolOutput, error) {
 			return cur, inputErrorf("The plan already has %d steps; submit it.", entity.MaxFixSteps)
 		}
 		for _, s := range cur.Steps {
-			if step.Kind == entity.FixAuto && s.Kind == entity.FixAuto && s.Tool == step.Tool && s.Action.Target() == step.Action.Target() {
+			if step.Kind == entity.FixAuto && s.Kind == entity.FixAuto && s.Tool == step.Tool && stepTarget(s) == stepTarget(step) {
 				return cur, inputErrorf("%s is already queued as %s.", step.Tool, s.ID)
 			}
 		}
@@ -275,11 +304,19 @@ func (t *FixTools) queue(step entity.FixStep) (FixToolOutput, error) {
 	ids := []string{}
 	if step.Kind == entity.FixAuto {
 		out["wouldBe"], out["rule"], out["previewMessage"] = step.WouldBe, step.Rule, step.PreviewMessage
-		if target := step.Action.Target(); target != "" {
+		if target := stepTarget(step); target != "" {
 			ids = append(ids, target)
 		}
 	}
 	return FixToolOutput{Output: out, IDs: ids}, nil
+}
+
+// stepTarget is the record an auto step changes ("" for a ticket or a step without a target).
+func stepTarget(s entity.FixStep) string {
+	if s.Action == nil {
+		return ""
+	}
+	return s.Action.Target()
 }
 
 func newDraftPlan(caseID string, now Clock) entity.FixPlan {
@@ -310,6 +347,9 @@ func (t *FixTools) records(ctx context.Context) (entity.CustomerRecords, error) 
 		return r, err
 	}
 	if r.Emails, err = t.store.Emails(ctx, cid); err != nil {
+		return r, err
+	}
+	if r.Errors, err = t.store.Errors(ctx, cid); err != nil {
 		return r, err
 	}
 	r.Now = t.now()

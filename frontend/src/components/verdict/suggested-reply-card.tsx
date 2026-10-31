@@ -17,8 +17,14 @@ interface SuggestedReplyCardProps {
   proposal: Proposal;
   draft: string;
   lastSuggestion: string | undefined;
+  /** Evidence records behind the verdict the draft comes from. */
+  records: number;
   onInsert: (text: string, how: "replace" | "append") => void;
   onDismiss: () => void;
+}
+
+export function recordsLabel(n: number): string {
+  return `${n} ${n === 1 ? "record" : "records"}`;
 }
 
 /** Text over this many chars gets an expand toggle (preview is clamped to 3 lines). */
@@ -29,6 +35,7 @@ export function SuggestedReplyCard({
   proposal,
   draft,
   lastSuggestion,
+  records,
   onInsert,
   onDismiss,
 }: SuggestedReplyCardProps) {
@@ -39,6 +46,7 @@ export function SuggestedReplyCard({
       proposal={proposal}
       draft={draft}
       lastSuggestion={lastSuggestion}
+      records={records}
       onInsert={onInsert}
       onDismiss={onDismiss}
     />
@@ -49,6 +57,7 @@ function SuggestedReplyBody({
   proposal,
   draft,
   lastSuggestion,
+  records,
   onInsert,
   onDismiss,
 }: SuggestedReplyCardProps) {
@@ -63,12 +72,17 @@ function SuggestedReplyBody({
 
   return (
     <section
-      aria-label="Suggested reply"
+      aria-label="Reply draft"
       className="animate-in fade-in-0 slide-in-from-bottom-1 mb-3 rounded-lg border border-zinc-200 bg-white duration-200 ease-[cubic-bezier(.25,.46,.45,.94)] motion-reduce:animate-none"
     >
       <div className="px-3 pt-2.5">
-        <div className="text-[12px] leading-4 font-medium text-indigo-700">
-          Suggested reply
+        <div className="flex items-baseline gap-2 text-[12px] leading-4">
+          <span className="font-medium text-indigo-700">Reply draft</span>
+          {records > 0 && (
+            <span className="text-zinc-500">
+              Based on {recordsLabel(records)}
+            </span>
+          )}
         </div>
         <p
           className={cn(

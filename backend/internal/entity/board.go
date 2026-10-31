@@ -15,7 +15,7 @@ func MergeTechIssue(existing *TechIssue, newID string, caseID, customerID string
 	} else {
 		card = TechIssue{
 			ID: newID, Signature: v.TechIssue.Signature, Title: v.TechIssue.Title, RootCause: v.TechIssue.RootCause,
-			EvidenceIDs: []string{}, CaseIDs: []string{}, AffectedCustomerIDs: []string{},
+			EvidenceIDs: []string{}, Evidence: []Evidence{}, MessageIDs: []string{}, CaseIDs: []string{}, AffectedCustomerIDs: []string{},
 			Status: TechIssueNew, CreatedAt: now.UTC(),
 		}
 	}
@@ -25,6 +25,10 @@ func MergeTechIssue(existing *TechIssue, newID string, caseID, customerID string
 	}
 	card.CaseIDs = union(card.CaseIDs, []string{caseID})
 	card.EvidenceIDs = union(card.EvidenceIDs, evidence)
+	card.Evidence = unionEvidence(card.Evidence, v.Evidence)
+	if card.MessageIDs == nil {
+		card.MessageIDs = []string{}
+	}
 	card.AffectedCustomerIDs = union(card.AffectedCustomerIDs, append([]string{customerID}, affected...))
 	return card
 }

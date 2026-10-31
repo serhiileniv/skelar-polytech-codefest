@@ -37,7 +37,7 @@ interface AskVerdictProps {
   enabled: boolean;
 }
 
-/** "Ask Resolly why…" pinned to the pane bottom: support asks, the agent answers from the verdict's records with id chips. */
+/** "Ask Resolly about the evidence…" pinned to the pane bottom: support asks, the agent answers from the verdict's records with id chips. */
 export function AskVerdict({ caseId, enabled }: AskVerdictProps) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
@@ -146,8 +146,8 @@ export function AskVerdict({ caseId, enabled }: AskVerdictProps) {
           aria-label="Ask Resolly"
           placeholder={
             enabled
-              ? "Ask Resolly why…"
-              : "Ask Resolly why… (after the verdict)"
+              ? "Ask Resolly about the evidence…"
+              : "Ask after the investigation"
           }
           className="h-9 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed"
         />

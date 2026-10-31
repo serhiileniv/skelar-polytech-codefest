@@ -144,6 +144,9 @@ func (u *ExecuteAction) decideAndApply(ctx context.Context, tx CaseTx, caseID st
 		}
 		return executed(entity.RuleTechBoard, fmt.Sprintf("%s tech card %q · %d customers.", verb, card.Title, len(card.AffectedCustomerIDs)), &card)
 
+	case entity.KindTechTicket:
+		return u.createTicket(ctx, tx, kase, *req.Ticket, executed, blocked)
+
 	case entity.KindMarkResolved:
 		if err := tx.SetCaseStatus(ctx, caseID, entity.CaseResolved); err != nil {
 			return entity.ActionResult{}, err
@@ -151,4 +154,41 @@ func (u *ExecuteAction) decideAndApply(ctx context.Context, tx CaseTx, caseID st
 		return executed(entity.RuleNone, "Case marked resolved.", nil)
 	}
 	return entity.ActionResult{}, entity.Fail(entity.ErrBadRequest, "Unknown action kind.")
+}
+
+// createTicket applies T2, then creates the card or adds the case to the open card for the signature.
+// It leaves the case status alone: a ticket does not keep the case open (Fix-it approve decides).
+func (u *ExecuteAction) createTicket(ctx context.Context, tx CaseTx, kase entity.Case, d entity.TechTicketDraft,
+	executed func(string, string, *entity.TechIssue) (entity.ActionResult, error), blocked func(string, string) (entity.ActionResult, error),
+) (entity.ActionResult, error) {
+	recs, err := tx.CustomerRecords(ctx, kase.CustomerID)
+	if err != nil {
+		return entity.ActionResult{}, err
+	}
+	open, err := tx.OpenTechIssueForCase(ctx, kase.ID)
+	if err != nil {
+		return entity.ActionResult{}, err
+	}
+	if gate := entity.EvaluateTechTicket(d, kase, recs, open); !gate.Allowed {
+		return blocked(gate.Rule, gate.Reason)
+	}
+	existing, err := tx.OpenTechIssue(ctx, d.Signature)
+	if err != nil {
+		return entity.ActionResult{}, err
+	}
+	newID := ""
+	if existing == nil {
+		if newID, err = tx.NextTechIssueID(ctx); err != nil {
+			return entity.ActionResult{}, err
+		}
+	}
+	billing, err := tx.Billing(ctx)
+	if err != nil {
+		return entity.ActionResult{}, err
+	}
+	card := entity.TicketCard(existing, newID, kase, d, entity.FindBySignature(billing, d.Signature), u.now())
+	if err := tx.SaveTechIssue(ctx, card); err != nil {
+		return entity.ActionResult{}, err
+	}
+	return executed(entity.RuleTechTicket, ticketMessage(card, existing != nil), &card)
 }

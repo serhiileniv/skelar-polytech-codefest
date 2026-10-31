@@ -75,7 +75,8 @@ function refundAnswer(v: Verdict): AskResult {
 export function askAnswer(v: Verdict, question: string): AskResult {
   const q = question.toLowerCase();
   if (q.includes("refund")) return refundAnswer(v);
+  if (q.includes("why") || q.includes("outcome") || q.includes("chain"))
+    return whyAnswer(v);
   if (q.includes("evidence") || q.includes("record")) return evidenceAnswer(v);
-  if (q.includes("why") || q.includes("outcome")) return whyAnswer(v);
   return { answer: `From the evidence: ${v.summary}`, evidence: ids(v) };
 }

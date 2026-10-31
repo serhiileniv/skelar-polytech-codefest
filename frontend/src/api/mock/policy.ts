@@ -11,6 +11,7 @@ import type {
   Signature,
   SupportAction,
   TechIssue,
+  TechTicket,
 } from "../types";
 import {
   SILENT_CANCEL_NOT_SYNCED,
@@ -201,6 +202,8 @@ function decide(
       return supportAction(state, kase, req.action, now);
     case "send_to_tech":
       return sendToTech(state, kase, now);
+    case "create_tech_ticket":
+      return createTechTicket(state, kase, req.ticket, now);
     case "mark_resolved":
       return {
         state: updateCase(state, kase.id, { status: "resolved" }),
@@ -432,6 +435,8 @@ function sendToTech(state: MockState, kase: Case, now: string): Transition {
         title: issue.title,
         rootCause: issue.rootCause,
         evidenceIds,
+        evidence: verdict.evidence,
+        messageIds: [],
         caseIds: [kase.id],
         affectedCustomerIds: union([], affected),
         status: "new",
@@ -445,4 +450,79 @@ function sendToTech(state: MockState, kase: Case, now: string): Transition {
   });
   const message = `${existing ? "Merged into" : "Created"} tech card "${card.title}" · ${card.affectedCustomerIds.length} customers.`;
   return { state: next, result: executed(message, "T1", card) };
+}
+
+/** Ids the mock cannot check (no event/error logs in the mock world); the Go T2 gate checks them. */
+const LOG_ID = /^(err|ev|mail)_/;
+
+/** T2: verdict exists, evidence is this case's records with ≥1 err_*, no open card lists the case. Status unchanged. */
+function createTechTicket(
+  state: MockState,
+  kase: Case,
+  ticket: TechTicket,
+  now: string,
+): Transition {
+  const ids = ticket.evidence.map((e) => e.id);
+  const records = findRecords(state, kase.customerId);
+  const owned = new Set([
+    kase.id,
+    ...kase.messages.map((m) => m.id),
+    ...records.subscriptions.map((x) => x.id),
+    ...records.payments.map((x) => x.id),
+    ...records.entitlements.map((x) => x.id),
+  ]);
+  const open = state.board.find(
+    (t) => t.status !== "resolved" && t.caseIds.includes(kase.id),
+  );
+  const foreign = ids.find((id) => !owned.has(id) && !LOG_ID.test(id));
+  const refuse = !kase.verdict
+    ? "Investigate the case before creating a tech ticket."
+    : open
+      ? `Ticket ${open.id} is already open for ${kase.id}.`
+      : foreign
+        ? `Evidence ${foreign} is not a record of this case or its customer.`
+        : !ids.some((id) => id.startsWith("err_"))
+          ? "A tech ticket must cite at least one error log (err_*) of this customer."
+          : null;
+  if (refuse) return { state, result: blocked(refuse, "T2") };
+  const existing = state.board.find(
+    (t) => t.status !== "resolved" && t.signature === ticket.signature,
+  );
+  const affected = [
+    kase.customerId,
+    ...(SIMILAR_BY_SIGNATURE[ticket.signature] ?? []),
+  ];
+  const messageIds = kase.messages.map((m) => m.id);
+  const card: TechIssue = existing
+    ? {
+        ...existing,
+        caseIds: union(existing.caseIds, [kase.id]),
+        evidenceIds: union(existing.evidenceIds, ids),
+        evidence: [
+          ...existing.evidence,
+          ...ticket.evidence.filter(
+            (e) => !existing.evidenceIds.includes(e.id),
+          ),
+        ],
+        messageIds: union(existing.messageIds, messageIds),
+        affectedCustomerIds: union(existing.affectedCustomerIds, affected),
+      }
+    : {
+        id: `tech_${String(state.board.length + 1).padStart(4, "0")}`,
+        signature: ticket.signature,
+        title: ticket.title,
+        rootCause: ticket.rootCause,
+        evidenceIds: ids,
+        evidence: ticket.evidence,
+        messageIds,
+        caseIds: [kase.id],
+        affectedCustomerIds: union([], affected),
+        status: "new",
+        createdAt: now,
+      };
+  const board = existing
+    ? state.board.map((t) => (t.id === card.id ? card : t))
+    : [card, ...state.board];
+  const message = `${existing ? "Added the case to" : "Created"} tech ticket ${card.id} "${card.title}" · ${card.evidenceIds.length} evidence · ${card.affectedCustomerIds.length} customers affected.`;
+  return { state: { ...state, board }, result: executed(message, "T2", card) };
 }

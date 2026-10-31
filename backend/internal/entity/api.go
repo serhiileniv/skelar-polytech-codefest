@@ -33,16 +33,28 @@ const (
 	KindSupportAction ActionKind = "support_action"
 	KindSendToTech    ActionKind = "send_to_tech"
 	KindMarkResolved  ActionKind = "mark_resolved"
+	KindTechTicket    ActionKind = "create_tech_ticket" // Fix-it approve only (rule T2)
 )
 
 type ActionRequest struct {
-	Kind   ActionKind     `json:"kind"`
-	Action *SupportAction `json:"action,omitempty"`
+	Kind   ActionKind       `json:"kind"`
+	Action *SupportAction   `json:"action,omitempty"`
+	Ticket *TechTicketDraft `json:"ticket,omitempty"`
 }
 
 // Check validates the request shape; the policy gate decides whether it may run.
 func (r ActionRequest) Check() error {
+	if r.Kind != KindTechTicket && r.Ticket != nil {
+		return Fail(ErrBadRequest, "%s takes no ticket.", r.Kind)
+	}
 	switch r.Kind {
+	case KindTechTicket:
+		if r.Ticket == nil || r.Action != nil {
+			return Fail(ErrBadRequest, "create_tech_ticket needs a ticket and no action.")
+		}
+		if err := r.Ticket.Check(); err != nil {
+			return Fail(ErrBadRequest, "Invalid ticket: %v.", err)
+		}
 	case KindSupportAction:
 		if r.Action == nil {
 			return Fail(ErrBadRequest, "support_action needs an action.")
@@ -55,7 +67,7 @@ func (r ActionRequest) Check() error {
 			return Fail(ErrBadRequest, "%s takes no action.", r.Kind)
 		}
 	default:
-		return Fail(ErrBadRequest, "kind must be support_action, send_to_tech or mark_resolved.")
+		return Fail(ErrBadRequest, "kind must be support_action, send_to_tech, mark_resolved or create_tech_ticket.")
 	}
 	return nil
 }

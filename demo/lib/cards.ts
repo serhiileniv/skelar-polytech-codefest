@@ -32,7 +32,7 @@ p{font-size:32px;color:#d4d4e8;margin-top:14px}
 .s{margin-top:34px;font-size:20px;color:#a5a8c8;letter-spacing:.02em}
 </style><body>
 <h1>Resolly</h1>
-<p>From ticket to fix in one click — safely.</p>
+<p>Fewer false escalations. Every action with receipts.</p>
 <div class="url">${esc(url)}</div>
 <div class="s">Go · Postgres · Claude agent loop · MCP tools · Next.js</div>
 </body>`;

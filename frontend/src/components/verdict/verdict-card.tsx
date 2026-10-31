@@ -2,21 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  CircleCheck,
-  KeyRound,
-  ListChecks,
-  MessageCircleQuestion,
-  MessageSquareText,
-  ShieldX,
-  TriangleAlert,
-  Undo2,
-  Users,
-  Wrench,
-  type LucideIcon,
-} from "lucide-react";
-
+import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -30,16 +16,32 @@ import {
 } from "@/api";
 import { cn } from "@/lib/utils";
 
+import { confidencePct } from "./conversation-view";
 import { useEvidenceFocus } from "./evidence-focus";
 import { OUTCOME_META } from "./outcome";
 import { IdChip } from "./outcome-badge";
+import {
+  Field,
+  GhostButton,
+  PrimaryButton,
+  RuleChip,
+  SecondaryButton,
+} from "./controls";
+import { FixPanel } from "./fix-panel";
+import { fixAllowed } from "./fix-view";
+import {
+  actionToastMessage,
+  instructionText,
+  splitRecordIds,
+} from "./verdict-text";
 
-interface VerdictCardProps {
+export interface VerdictCardProps {
   caseId: string;
   /** Server-side status; keeps buttons disabled after a remount. */
   caseStatus: CaseStatus;
   verdict: Verdict;
-  onInsert: (text: string) => void;
+  /** Shows the "Suggested reply" card above the composer; nothing is inserted without a click there. */
+  onPropose: (text: string) => void;
   onChanged: () => void;
 }
 
@@ -47,49 +49,59 @@ export function VerdictCard(props: VerdictCardProps) {
   const { verdict } = props;
   const { focus } = useEvidenceFocus();
   return (
-    <article className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
       <VerdictHeader verdict={verdict} />
-      <div className="space-y-4 p-3">
-        {verdict.downgraded && <DowngradedNotice verdict={verdict} />}
-
+      <div className="divide-y divide-zinc-100 [&>*]:px-4 [&>*]:py-3">
         {verdict.outcome === "suspicious" ? (
-          <SuspiciousBanner />
+          <div className="space-y-3">
+            <SuspiciousBanner />
+            {verdict.replyDraft.trim() !== "" && (
+              <SecondaryButton
+                onClick={() => props.onPropose(verdict.replyDraft)}
+              >
+                Use suggested reply
+              </SecondaryButton>
+            )}
+          </div>
         ) : (
           <NextStep {...props} />
         )}
+        {verdict.downgraded && (
+          <div>
+            <DowngradedNotice verdict={verdict} />
+          </div>
+        )}
 
         <Field label="Customer wants">
-          <p className="text-[13px] font-medium text-zinc-900">
+          <p className="text-[13px] leading-5 font-medium text-zinc-900">
             {verdict.customerGoal}
           </p>
         </Field>
         <Field label="What happened">
-          <p className="text-[13px] leading-relaxed text-zinc-700">
-            {verdict.summary}
-          </p>
+          <SummaryText text={verdict.summary} />
         </Field>
 
         {verdict.outcome === "tech_team" && verdict.techIssue && (
           <Field label="Root cause">
-            <p className="text-[13px] font-medium text-zinc-900">
+            <p className="text-[13px] leading-5 font-medium text-zinc-900">
               {verdict.techIssue.title}
             </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-zinc-600">
+            <p className="mt-0.5 text-[13px] leading-5 text-zinc-700">
               {verdict.techIssue.rootCause}
             </p>
           </Field>
         )}
 
         {verdict.evidence.length > 0 && (
-          <Field label={`Evidence · ${verdict.evidence.length}`}>
+          <Field label={`Evidence (${verdict.evidence.length})`}>
             <ul className="space-y-1.5">
               {verdict.evidence.map((e) => (
                 <li
                   key={`${e.id}-${e.note}`}
-                  className="flex items-start gap-2 text-xs text-zinc-700"
+                  className="flex items-start gap-2 text-[13px] leading-5 text-zinc-700"
                 >
                   <IdChip id={e.id} onClick={() => focus(e.id)} />
-                  <span className="leading-snug">{e.note}</span>
+                  <span>{e.note}</span>
                 </li>
               ))}
             </ul>
@@ -100,127 +112,137 @@ export function VerdictCard(props: VerdictCardProps) {
   );
 }
 
-function VerdictHeader({ verdict }: { verdict: Verdict }) {
+/** Outcome dot + label on the outcome tint, confidence on the right. */
+export function VerdictHeader({
+  verdict,
+  prefix = "",
+}: {
+  verdict: Verdict;
+  /** E.g. "My call: " in the conversation. */
+  prefix?: string;
+}) {
   const meta = OUTCOME_META[verdict.outcome];
-  const Icon = meta.icon;
-  const pct = Math.round(Math.min(1, Math.max(0, verdict.confidence)) * 100);
+  const pct = confidencePct(verdict);
   return (
-    <header
-      className={cn("flex items-center gap-3 border-b px-3 py-2.5", meta.band)}
-    >
+    <header className={cn("flex items-center gap-2 px-4 py-3", meta.tint)}>
       <span
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-lg",
-          meta.bandIcon,
-        )}
-      >
-        <Icon className="size-4" />
+        aria-hidden
+        className={cn("size-2 shrink-0 rounded-full", meta.dot)}
+      />
+      <span className="truncate text-[15px] leading-5 font-semibold tracking-[-0.01em] text-zinc-900">
+        {prefix}
+        {meta.label}
       </span>
-      <div className="min-w-0 flex-1">
-        <div className="text-[10px] font-medium tracking-wide uppercase opacity-60">
-          Verdict
-        </div>
-        <div className="truncate text-sm font-semibold">{meta.label}</div>
-      </div>
-      <div className="w-24 shrink-0">
-        <div className="flex items-baseline justify-between text-[10px] opacity-70">
-          <span>Confidence</span>
-          <span className="font-semibold tabular-nums">{pct}</span>
-        </div>
-        <div
-          role="meter"
-          aria-label="Confidence"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={pct}
-          className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/80 ring-1 ring-black/5"
-        >
-          <div
-            className={cn("h-full rounded-full", meta.bar)}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      </div>
+      <span className="ml-auto shrink-0 text-[12px] leading-4 text-zinc-500 tabular-nums">
+        {pct}% confident
+      </span>
     </header>
   );
 }
 
-function DowngradedNotice({ verdict }: { verdict: Verdict }) {
+/** Long summaries clamp to 4 lines; record ids inside become chips. */
+const SUMMARY_CLAMP_CHARS = 280;
+
+export function SummaryText({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const { focus } = useEvidenceFocus();
+  const long = text.length > SUMMARY_CLAMP_CHARS;
   return (
-    <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
-      <TriangleAlert className="mt-px size-3.5 shrink-0" />
-      <div>
-        <div className="font-medium">
-          Downgraded by validator (model said “
-          {OUTCOME_META[verdict.modelOutcome].label}”)
-        </div>
-        {verdict.validationNotes.length > 0 && (
-          <ul className="mt-1 list-disc space-y-0.5 pl-4 text-amber-800">
-            {verdict.validationNotes.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
+    <div>
+      <p
+        className={cn(
+          "text-[13px] leading-5 text-zinc-700",
+          long && !open && "line-clamp-4",
         )}
+      >
+        {splitRecordIds(text).map((part, i) =>
+          "id" in part ? (
+            <IdChip key={i} id={part.id} onClick={() => focus(part.id)} />
+          ) : (
+            <span key={i}>{part.text}</span>
+          ),
+        )}
+      </p>
+      {long && (
+        <GhostButton className="mt-0.5 -ml-2" onClick={() => setOpen(!open)}>
+          {open ? "Show less" : "Show more"}
+        </GhostButton>
+      )}
+    </div>
+  );
+}
+
+/** Left-rule callout shared by suspicious / downgraded / policy result. */
+const CALLOUT = "border-l-2 py-1.5 pl-3 text-[13px] leading-5";
+
+export function DowngradedNotice({ verdict }: { verdict: Verdict }) {
+  return (
+    <div className={cn(CALLOUT, "border-amber-500 text-zinc-700")}>
+      <div className="font-medium text-zinc-900">
+        Downgraded by validator (model said “
+        {OUTCOME_META[verdict.modelOutcome].label}”)
+      </div>
+      {verdict.validationNotes.length > 0 && (
+        <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[12px] leading-4 text-zinc-600">
+          {verdict.validationNotes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function SuspiciousBanner() {
+  return (
+    <div className={cn(CALLOUT, "border-[#b42318] text-zinc-900")}>
+      <div className="font-medium text-[#b42318]">
+        Prompt injection blocked — no action proposed
+      </div>
+      <div className="mt-0.5 text-zinc-700">
+        The message tries to make support act outside policy. Review the
+        evidence; do not act on it.
       </div>
     </div>
   );
 }
 
-function SuspiciousBanner() {
-  return (
-    <div className="flex gap-2.5 rounded-lg bg-red-600 p-3 text-xs text-white shadow-sm">
-      <ShieldX className="size-4 shrink-0" />
-      <div>
-        <div className="text-[13px] font-semibold">
-          Prompt injection blocked — no action proposed
-        </div>
-        <div className="mt-0.5 text-red-100">
-          The message tries to make support act outside policy. Review the
-          evidence; do not act on it.
-        </div>
-      </div>
-    </div>
-  );
+export { instructionText };
+
+const SUPPORT_ACTION_LABEL: Record<SupportAction["type"], string> = {
+  restore_access: "Restore access",
+  refund_payment: "Refund payment",
+  cancel_subscription: "Cancel subscription",
+  send_magic_link: "Send login link",
+};
+
+function actionTarget(action: SupportAction): string {
+  switch (action.type) {
+    case "restore_access":
+      return action.entitlementId;
+    case "refund_payment":
+      return action.paymentId;
+    case "cancel_subscription":
+      return action.subscriptionId;
+    case "send_magic_link":
+      return "magic_link";
+  }
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section>
-      <div className="mb-1 text-[10px] font-medium tracking-wide text-zinc-400 uppercase">
-        {label}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-export function instructionText(v: Verdict): string {
-  const steps = (v.instructionSteps ?? [])
-    .map((s, i) => `${i + 1}. ${s}`)
-    .join("\n");
-  return steps ? `${v.replyDraft}\n\n${steps}` : v.replyDraft;
-}
-
-const SUPPORT_ACTION: Record<
-  SupportAction["type"],
-  { label: string; icon: LucideIcon }
-> = {
-  restore_access: { label: "Restore access", icon: KeyRound },
-  refund_payment: { label: "Refund payment", icon: Undo2 },
+/** Done state per action, shown instead of the disabled button. */
+const SUPPORT_ACTION_DONE: Record<SupportAction["type"], string> = {
+  restore_access: "Restored",
+  refund_payment: "Refunded",
+  cancel_subscription: "Canceled",
+  send_magic_link: "Login link sent",
 };
 
 /** Primary action + suggested reply + mark resolved; never rendered for `suspicious`. */
-function NextStep({
+export function NextStep({
   caseId,
   caseStatus,
   verdict,
-  onInsert,
+  onPropose,
   onChanged,
 }: VerdictCardProps) {
   const [pending, setPending] = useState(false);
@@ -236,7 +258,7 @@ function NextStep({
     try {
       const res = await api.action(caseId, req);
       if (req.kind !== "mark_resolved") setResult(res);
-      const msg = `${res.message} · rule ${res.rule}`;
+      const msg = actionToastMessage(res.message, res.rule);
       if (res.status === "executed") toast.success(msg);
       else toast.error(`Blocked by policy · ${msg}`);
       onChanged();
@@ -249,35 +271,43 @@ function NextStep({
     }
   }
 
-  // user_can_fix / need_more_info: the primary button already inserts the reply.
-  const showReplyButton =
-    verdict.outcome === "support_can_fix" || verdict.outcome === "tech_team";
+  // F1 holds: Fix-it is the primary path, the manual action becomes secondary.
+  const canFix = fixAllowed(verdict);
+  const ActionButton = canFix ? SecondaryButton : PrimaryButton;
 
+  // need_more_info: the primary button already proposes replyDraft.
+  const showReplyButton =
+    verdict.outcome !== "need_more_info" && verdict.replyDraft.trim() !== "";
+
+  // Direct children are staggered in by `.copilot-proposal-in` (label, fix, actions, detail…).
   return (
-    <section className="space-y-2 rounded-lg border border-indigo-100 bg-indigo-50/40 p-2.5">
-      <div className="text-[10px] font-semibold tracking-wide text-indigo-700 uppercase">
+    <section className="space-y-2.5">
+      <div className="text-[12px] leading-4 font-medium text-zinc-500">
         Next step
       </div>
-      {primary()}
-      <PolicyResult result={result} error={error} />
-      {verdict.outcome === "tech_team" && executed && result.techIssue && (
-        <ImpactCallout count={result.techIssue.affectedCustomerIds.length} />
+      {canFix && (
+        <FixPanel caseId={caseId} closed={closed} onChanged={onChanged} />
       )}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {primary()}
         {showReplyButton && (
-          <SecondaryButton onClick={() => onInsert(verdict.replyDraft)}>
-            <MessageSquareText className="size-3.5" />
+          <SecondaryButton onClick={() => onPropose(verdict.replyDraft)}>
             Use suggested reply
           </SecondaryButton>
         )}
-        <SecondaryButton
+        <GhostButton
+          className="ml-auto"
           disabled={pending || closed}
           onClick={() => void run({ kind: "mark_resolved" })}
         >
-          <CircleCheck className="size-3.5" />
           {closed ? "Resolved" : "Mark resolved"}
-        </SecondaryButton>
+        </GhostButton>
       </div>
+      {detail()}
+      <PolicyResult result={executed ? null : result} error={error} />
+      {verdict.outcome === "tech_team" && executed && result.techIssue && (
+        <ImpactCallout count={result.techIssue.affectedCustomerIds.length} />
+      )}
     </section>
   );
 
@@ -285,102 +315,102 @@ function NextStep({
     switch (verdict.outcome) {
       case "user_can_fix":
         return (
-          <PrimaryButton onClick={() => onInsert(instructionText(verdict))}>
-            <ListChecks className="size-3.5" />
+          <ActionButton onClick={() => onPropose(instructionText(verdict))}>
             Insert instruction
-          </PrimaryButton>
+          </ActionButton>
         );
       case "need_more_info":
         return (
-          <>
-            {verdict.clarifyingQuestion && (
-              <p className="text-[13px] text-zinc-800 italic">
-                “{verdict.clarifyingQuestion}”
-              </p>
-            )}
-            <PrimaryButton onClick={() => onInsert(verdict.replyDraft)}>
-              <MessageCircleQuestion className="size-3.5" />
-              Ask clarifying question
-            </PrimaryButton>
-          </>
+          <PrimaryButton onClick={() => onPropose(verdict.replyDraft)}>
+            Ask clarifying question
+          </PrimaryButton>
         );
       case "support_can_fix": {
         const action = verdict.supportAction;
-        if (!action)
-          return <p className="text-xs text-zinc-500">No action proposed.</p>;
-        const { label, icon: Icon } = SUPPORT_ACTION[action.type];
+        if (!action) return null;
+        if (executed)
+          return (
+            <DoneLine text={SUPPORT_ACTION_DONE[action.type]} result={result} />
+          );
+        // Closed with the result lost on remount: the ghost "Resolved" already says it.
+        if (closed) return null;
         return (
-          <>
-            <PrimaryButton
-              disabled={pending || closed || executed}
-              onClick={() => void run({ kind: "support_action", action })}
-            >
-              <Icon className="size-3.5" />
-              {label}
-            </PrimaryButton>
-            <p className="text-[11px] leading-snug text-zinc-500">
-              <span className="font-mono">
-                {action.type === "restore_access"
-                  ? action.entitlementId
-                  : action.paymentId}
-              </span>{" "}
-              · {action.reason}
-            </p>
-          </>
+          <ActionButton
+            disabled={pending || closed}
+            onClick={() => void run({ kind: "support_action", action })}
+          >
+            {SUPPORT_ACTION_LABEL[action.type]}
+          </ActionButton>
         );
       }
       case "tech_team":
+        if (executed)
+          return <DoneLine text="Sent to tech board" result={result} />;
+        if (caseStatus === "with_tech")
+          return <DoneLine text="Already on tech board" result={null} />;
+        if (closed) return null;
         return (
           <PrimaryButton
-            disabled={
-              pending || closed || caseStatus === "with_tech" || executed
-            }
+            disabled={pending || closed}
             onClick={() => void run({ kind: "send_to_tech" })}
           >
-            <Wrench className="size-3.5" />
-            {caseStatus === "with_tech" && !executed
-              ? "Already on tech board"
-              : "Send to tech board"}
+            Send to tech board
           </PrimaryButton>
         );
       case "suspicious":
         return null;
     }
   }
+
+  function detail() {
+    switch (verdict.outcome) {
+      case "need_more_info":
+        return verdict.clarifyingQuestion ? (
+          <p className="text-[13px] leading-5 text-zinc-700">
+            “{verdict.clarifyingQuestion}”
+          </p>
+        ) : null;
+      case "support_can_fix": {
+        const action = verdict.supportAction;
+        if (!action)
+          return (
+            <p className="text-[12px] leading-4 text-zinc-500">
+              No action proposed.
+            </p>
+          );
+        return (
+          <p className="text-[12px] leading-5 text-zinc-500">
+            <IdChip id={actionTarget(action)} /> · {action.reason}
+          </p>
+        );
+      }
+      default:
+        return null;
+    }
+  }
 }
 
-function PrimaryButton(props: React.ComponentProps<"button">) {
-  return (
-    <button
-      type="button"
-      {...props}
-      className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-    />
-  );
-}
-
-function SecondaryButton(props: React.ComponentProps<"button">) {
-  return (
-    <button
-      type="button"
-      {...props}
-      className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-    />
-  );
-}
-
-function RuleChip({ rule, ok }: { rule: string; ok: boolean }) {
+/** Executed (or already-done) action: green status line + the rule that allowed it. */
+function DoneLine({
+  text,
+  result,
+}: {
+  text: string;
+  result: ActionResult | null;
+}) {
   return (
     <span
-      title={`Policy rule ${rule}`}
-      className={cn(
-        "inline-flex shrink-0 items-center rounded px-1.5 py-px font-mono text-[10.5px] font-semibold ring-1 ring-inset",
-        ok
-          ? "bg-white text-emerald-700 ring-emerald-600/30"
-          : "bg-white text-red-700 ring-red-600/30",
-      )}
+      role="status"
+      title={result?.message}
+      className="inline-flex h-8 items-center gap-1.5 text-[13px] font-medium text-[#2f7d55]"
     >
-      {rule}
+      {text}
+      {result && result.rule !== "-" && (
+        <>
+          <span className="text-zinc-300">·</span>
+          <RuleChip rule={result.rule} ok />
+        </>
+      )}
     </span>
   );
 }
@@ -392,22 +422,25 @@ function PolicyResult({
   result: ActionResult | null;
   error: string | null;
 }) {
-  if (error) return <p className="text-xs text-red-600">{error}</p>;
+  if (error)
+    return <p className="text-[13px] leading-5 text-[#b42318]">{error}</p>;
   if (!result) return null;
   const ok = result.status === "executed";
-  const Icon = ok ? CircleCheck : ShieldX;
   return (
     <div
       className={cn(
-        "flex items-start gap-2 rounded-lg border p-2 text-xs",
-        ok
-          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-          : "border-red-200 bg-red-50 text-red-900",
+        CALLOUT,
+        "flex items-start gap-2 text-zinc-700",
+        ok ? "border-[#2f7d55]" : "border-[#b42318]",
       )}
     >
-      <Icon className="mt-px size-3.5 shrink-0" />
       <div className="min-w-0 flex-1">
-        <span className="font-semibold">
+        <span
+          className={cn(
+            "font-medium",
+            ok ? "text-[#2f7d55]" : "text-[#b42318]",
+          )}
+        >
           {ok ? "Executed" : "Blocked by policy"}
         </span>{" "}
         · {result.message}
@@ -421,18 +454,24 @@ function ImpactCallout({ count }: { count: number }) {
   return (
     <Link
       href="/board"
-      className="group flex items-center gap-2.5 rounded-lg border border-violet-200 bg-violet-50 p-2.5 text-violet-900 transition-colors hover:bg-violet-100"
+      className={cn(
+        CALLOUT,
+        "group flex items-center gap-3 border-[#b4532a] text-zinc-700 transition-colors duration-100 hover:text-zinc-900 motion-reduce:transition-none",
+      )}
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white">
-        <Users className="size-4" />
-      </span>
-      <span className="min-w-0 flex-1 text-xs">
-        <span className="text-base font-semibold tabular-nums">{count}</span>{" "}
+      <span className="min-w-0 flex-1">
+        <span className="text-[15px] font-semibold text-zinc-900 tabular-nums">
+          {count}
+        </span>{" "}
         {count === 1 ? "customer" : "customers"} affected
       </span>
-      <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-violet-700">
+      <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-medium text-indigo-700">
         View on tech board
-        <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+        <ArrowRight
+          aria-hidden
+          strokeWidth={1.5}
+          className="size-3.5 transition-transform duration-100 group-hover:translate-x-0.5 motion-reduce:transition-none"
+        />
       </span>
     </Link>
   );

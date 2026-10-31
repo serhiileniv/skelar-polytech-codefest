@@ -1,24 +1,28 @@
-import type { InvestigateEvent, InvestigateEventName } from "./types";
+import type { StreamEvent, StreamEventName } from "./types";
 
-const EVENT_NAMES: readonly InvestigateEventName[] = [
+const EVENT_NAMES: readonly StreamEventName[] = [
   "start",
   "step",
   "text",
   "tool_call",
   "tool_result",
   "verdict",
+  "plan",
   "error",
   "done",
 ];
 
-const isEventName = (name: string): name is InvestigateEventName =>
+const isEventName = (name: string): name is StreamEventName =>
   (EVENT_NAMES as readonly string[]).includes(name);
 
 /**
  * Incremental SSE parser: feed text chunks as they arrive, get one callback per complete event.
  * Unknown event names and non-JSON data are skipped, so a newer backend cannot crash the UI.
+ * Shared by investigate and fix streams; `E` narrows the callback to the stream's own events.
  */
-export function createSseParser(onEvent: (e: InvestigateEvent) => void): {
+export function createSseParser<E extends StreamEvent = StreamEvent>(
+  onEvent: (e: E) => void,
+): {
   push: (chunk: string) => void;
 } {
   let buffer = "";
@@ -36,7 +40,7 @@ export function createSseParser(onEvent: (e: InvestigateEvent) => void): {
       onEvent({
         event: name,
         data: JSON.parse(data.join("\n")),
-      } as InvestigateEvent);
+      } as E);
     } catch {
       // Malformed JSON: drop this event, keep the stream going.
     }
@@ -56,9 +60,9 @@ export function createSseParser(onEvent: (e: InvestigateEvent) => void): {
 }
 
 /** Reads a `text/event-stream` body to the end. */
-export async function readSse(
+export async function readSse<E extends StreamEvent>(
   body: ReadableStream<Uint8Array>,
-  onEvent: (e: InvestigateEvent) => void,
+  onEvent: (e: E) => void,
 ): Promise<void> {
   const parser = createSseParser(onEvent);
   const reader = body.getReader();

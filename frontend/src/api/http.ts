@@ -1,6 +1,7 @@
 import type { ApiClient } from "./client";
 import { ApiRequestError, toApiError } from "./errors";
 import { readSse } from "./sse";
+import type { StreamEvent } from "./types";
 
 /** Client for the Go API (`docs/api.md`). */
 export function createHttpClient(baseUrl: string): ApiClient {
@@ -30,6 +31,25 @@ export function createHttpClient(baseUrl: string): ApiClient {
     body: JSON.stringify(body),
   });
 
+  async function stream<E extends StreamEvent>(
+    url: string,
+    onEvent: (e: E) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const res = await fetch(`${base}${url}`, {
+      method: "POST",
+      headers: { accept: "text/event-stream" },
+      signal,
+    });
+    if (!res.ok) return fail(res);
+    if (!res.body)
+      throw new ApiRequestError(500, {
+        code: "internal",
+        message: "Empty event stream",
+      });
+    await readSse(res.body, onEvent);
+  }
+
   return {
     mode: "http",
     listCases: () => request("/api/cases"),
@@ -39,19 +59,15 @@ export function createHttpClient(baseUrl: string): ApiClient {
     board: () => request("/api/board"),
     metrics: () => request("/api/metrics"),
     reset: () => request("/api/state", { method: "DELETE" }),
-    async investigate(id, onEvent, signal) {
-      const res = await fetch(`${base}${path(id)}/investigate`, {
-        method: "POST",
-        headers: { accept: "text/event-stream" },
-        signal,
-      });
-      if (!res.ok) return fail(res);
-      if (!res.body)
-        throw new ApiRequestError(500, {
-          code: "internal",
-          message: "Empty investigate stream",
-        });
-      await readSse(res.body, onEvent);
-    },
+    investigate: (id, onEvent, signal) =>
+      stream(`${path(id)}/investigate`, onEvent, signal),
+    ask: (id, question) => request(`${path(id)}/ask`, post({ question })),
+    fixCapabilities: () => request("/api/fix/capabilities"),
+    fix: (id, onEvent, signal) => stream(`${path(id)}/fix`, onEvent, signal),
+    approveFix: (id, planId, stepIds) =>
+      request(
+        `${path(id)}/fix/${encodeURIComponent(planId)}/approve`,
+        post({ stepIds }),
+      ),
   };
 }

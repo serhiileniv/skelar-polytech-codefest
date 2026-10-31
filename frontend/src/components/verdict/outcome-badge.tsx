@@ -1,29 +1,24 @@
 import { cn } from "@/lib/utils";
-import type { Outcome } from "@/api";
+import type { CaseStatus, Outcome } from "@/api";
 
-import { OUTCOME_META } from "./outcome";
+import { OUTCOME_META, STATUS_DOT, STATUS_LABEL } from "./outcome";
 
 interface OutcomeBadgeProps {
   outcome: Outcome;
-  size?: "sm" | "md";
   className?: string;
 }
 
-export function OutcomeBadge({
-  outcome,
-  size = "sm",
-  className,
-}: OutcomeBadgeProps) {
+export function OutcomeBadge({ outcome, className }: OutcomeBadgeProps) {
   const meta = OUTCOME_META[outcome];
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md font-medium whitespace-nowrap ring-1 ring-inset",
-        size === "sm" ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-1 text-xs",
-        meta.badge,
+        "inline-flex items-center gap-1.5 text-[12px] leading-4 font-medium whitespace-nowrap",
+        meta.text,
         className,
       )}
     >
+      <span aria-hidden className={cn("size-1.5 rounded-full", meta.dot)} />
       {meta.label}
     </span>
   );
@@ -36,7 +31,7 @@ interface IdChipProps {
 }
 
 const CHIP_CLASS =
-  "inline-flex shrink-0 items-center rounded border border-zinc-200 bg-zinc-50 px-1 py-px font-mono text-[10.5px] text-zinc-600";
+  "inline-flex shrink-0 items-center rounded-[4px] bg-zinc-100 px-1 font-mono text-[11.5px] leading-4 text-zinc-600";
 
 export function IdChip({ id, onClick }: IdChipProps) {
   if (onClick) {
@@ -47,7 +42,7 @@ export function IdChip({ id, onClick }: IdChipProps) {
         title={`Show ${id}`}
         className={cn(
           CHIP_CLASS,
-          "cursor-pointer transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none",
+          "cursor-pointer transition-colors duration-100 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none motion-reduce:transition-none",
         )}
       >
         {id}
@@ -55,4 +50,14 @@ export function IdChip({ id, onClick }: IdChipProps) {
     );
   }
   return <code className={CHIP_CLASS}>{id}</code>;
+}
+
+/** Case status as a dot plus text. */
+export function StatusDot({ status }: { status: CaseStatus }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[12px] leading-4 text-zinc-500">
+      <span className={cn("size-1.5 rounded-full", STATUS_DOT[status])} />
+      {STATUS_LABEL[status]}
+    </span>
+  );
 }

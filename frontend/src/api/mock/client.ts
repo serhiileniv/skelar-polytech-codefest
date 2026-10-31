@@ -7,6 +7,7 @@ import { ApiRequestError } from "../errors";
 import type {
   CaseDetail,
   CaseListItem,
+  FixPlan,
   InvestigateEvent,
   Metrics,
   Outcome,
@@ -15,12 +16,23 @@ import type {
 import {
   addAudit,
   applyAction,
+  assertFixAllowed,
   findCase,
   findRecords,
   notFound,
+  postReply,
   updateCase,
   type MockState,
 } from "./policy";
+import {
+  FIX_CAPABILITIES,
+  buildPlan,
+  fixEvents,
+  runPlan,
+  storePlanAudit,
+} from "./fix";
+import { fixScriptFor } from "./fix-scripts";
+import { askAnswer, assertAskable } from "./ask";
 import { scriptFor, type CaseScript } from "./scripts";
 import { createWorld } from "./world";
 
@@ -31,7 +43,6 @@ export interface MockClientOptions {
 
 const DEFAULT_DELAY_MS = 350;
 const MAX_STEPS = 8;
-const MAX_REPLY_CHARS = 3000;
 const PREVIEW_CHARS = 120;
 const OUTCOMES: readonly Outcome[] = [
   "user_can_fix",
@@ -210,6 +221,9 @@ export function createMockClient({
   delayMs = DEFAULT_DELAY_MS,
 }: MockClientOptions = {}): ApiClient {
   let state = initialState();
+  /** Pending plan per case (in memory, like the Go plan store) and whether it was approved. */
+  let plans = new Map<string, { plan: FixPlan; approved: boolean }>();
+  let planSeq = 0;
 
   return {
     mode: "mock",
@@ -234,35 +248,7 @@ export function createMockClient({
     },
 
     async reply(id, body) {
-      const text = body.trim();
-      if (text.length < 1 || text.length > MAX_REPLY_CHARS) {
-        throw new ApiRequestError(400, {
-          code: "bad_request",
-          message: `Reply must be 1–${MAX_REPLY_CHARS} characters`,
-        });
-      }
-      const kase = findCase(state, id);
-      const message = {
-        id: `msg_s${String(state.seq + 1).padStart(4, "0")}`,
-        from: "support" as const,
-        body: text,
-        at: nowIso(),
-      };
-      const status = kase.status === "open" ? "waiting_customer" : kase.status;
-      const withMessage = updateCase(state, id, {
-        messages: [...kase.messages, message],
-        status,
-      });
-      state = addAudit(
-        withMessage,
-        {
-          caseId: id,
-          actor: "support",
-          step: "reply",
-          detail: text.slice(0, PREVIEW_CHARS),
-        },
-        message.at,
-      );
+      state = postReply(state, id, body, nowIso());
       return detailOf(state, id);
     },
 
@@ -282,6 +268,7 @@ export function createMockClient({
 
     async reset() {
       state = initialState();
+      plans = new Map();
       return { reset: true };
     },
 
@@ -296,6 +283,55 @@ export function createMockClient({
           state = storeVerdict(state, id, script, verdict);
         onEvent(clone(event));
       }
+    },
+
+    async ask(id, question) {
+      const verdict = assertAskable(findCase(state, id), question);
+      await sleep(delayMs * 2);
+      return clone(askAnswer(verdict, question));
+    },
+
+    async fixCapabilities() {
+      return clone(FIX_CAPABILITIES);
+    },
+
+    async fix(id, onEvent, signal) {
+      const kase = findCase(state, id);
+      assertFixAllowed(kase);
+      const script = fixScriptFor(kase, findRecords(state, kase.customerId));
+      if (!script) throw notFound(`Fix-it script for ${id}`);
+      planSeq += 1;
+      const plan = buildPlan(
+        state,
+        id,
+        script,
+        `plan_${String(planSeq).padStart(4, "0")}`,
+        nowIso(),
+      );
+      for (const event of fixEvents(id, script, plan)) {
+        await sleep(event.event === "start" ? 0 : delayMs, signal);
+        if (event.event === "plan") {
+          state = storePlanAudit(state, script, plan);
+          plans = new Map(plans).set(id, { plan, approved: false });
+        }
+        onEvent(clone(event));
+      }
+    },
+
+    async approveFix(id, planId, stepIds) {
+      findCase(state, id);
+      const entry = plans.get(id);
+      if (!entry || entry.plan.id !== planId)
+        throw notFound(`Plan ${planId} for ${id}`);
+      if (entry.approved)
+        throw new ApiRequestError(409, {
+          code: "conflict",
+          message: `Plan ${planId} was already approved`,
+        });
+      const out = runPlan(state, entry.plan, stepIds, nowIso());
+      state = out.state;
+      plans = new Map(plans).set(id, { ...entry, approved: true });
+      return clone(out.result);
     },
   };
 }

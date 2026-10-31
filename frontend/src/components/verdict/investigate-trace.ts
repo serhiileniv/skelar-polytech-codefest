@@ -1,4 +1,10 @@
-import type { InvestigateEvent, ToolName, Verdict } from "@/api";
+import type {
+  FixPlan,
+  FixToolName,
+  StreamEvent,
+  ToolName,
+  Verdict,
+} from "@/api";
 
 export type ToolRowState =
   "input-available" | "output-available" | "output-error";
@@ -9,7 +15,7 @@ export type TraceItem =
       kind: "tool";
       key: string;
       step: number;
-      name: ToolName;
+      name: ToolName | FixToolName;
       state: ToolRowState;
       output?: unknown;
       /** Record ids the tool returned; evidence chips jump here. */
@@ -20,6 +26,8 @@ export type TraceItem =
 export interface TraceState {
   items: TraceItem[];
   verdict: Verdict | null;
+  /** Fix-it runs end with a plan instead of a verdict. */
+  plan: FixPlan | null;
   replay: boolean;
   error: string | null;
   steps: number;
@@ -29,7 +37,7 @@ export interface TraceState {
   started: boolean;
 }
 
-export type TraceAction = InvestigateEvent | { event: "reset" };
+export type TraceAction = StreamEvent | { event: "reset" };
 
 /** Fallback budget until `start` arrives; matches the backend loop cap. */
 const DEFAULT_MAX_STEPS = 8;
@@ -37,6 +45,7 @@ const DEFAULT_MAX_STEPS = 8;
 export const INITIAL_TRACE: TraceState = {
   items: [],
   verdict: null,
+  plan: null,
   replay: false,
   error: null,
   steps: 0,
@@ -102,6 +111,8 @@ export function traceReducer(
     }
     case "verdict":
       return { ...s, verdict: action.data.verdict };
+    case "plan":
+      return { ...s, plan: action.data.plan };
     case "error":
       return {
         ...s,

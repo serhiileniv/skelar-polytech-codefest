@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createSseParser, readSse } from "./sse";
-import type { InvestigateEvent } from "./types";
+import type { StreamEvent } from "./types";
 
 const collect = () => {
-  const events: InvestigateEvent[] = [];
+  const events: StreamEvent[] = [];
   return { events, parser: createSseParser((e) => events.push(e)) };
 };
 
@@ -56,6 +56,70 @@ describe("createSseParser", () => {
   });
 });
 
+describe("createSseParser fix events", () => {
+  const plan = {
+    id: "plan_0001",
+    caseId: "case_101",
+    problem: "p",
+    summary: "s",
+    steps: [],
+    createdAt: "2026-10-31T10:00:00.000Z",
+  };
+  it.each([
+    [
+      "start with mode fix",
+      "start",
+      {
+        caseId: "case_101",
+        replay: true,
+        model: "m",
+        maxSteps: 6,
+        mode: "fix",
+      },
+    ],
+    [
+      "fix tool_call",
+      "tool_call",
+      { callId: "f1", tool: "cancelSubscription", input: {} },
+    ],
+    [
+      "queued tool_result",
+      "tool_result",
+      {
+        callId: "f1",
+        tool: "cancelSubscription",
+        output: { queued: true },
+        ids: [],
+      },
+    ],
+    ["plan", "plan", { plan }],
+  ])("delivers %s", (_label, name, data) => {
+    const { events, parser } = collect();
+
+    parser.push(ev(name, data));
+
+    expect(events).toEqual([{ event: name, data }]);
+  });
+
+  it("delivers a full fix stream in order", () => {
+    const { events, parser } = collect();
+
+    parser.push(
+      ev("start", { caseId: "case_101", mode: "fix" }) +
+        ev("step", { n: 1 }) +
+        ev("plan", { plan }) +
+        ev("done", {}),
+    );
+
+    expect(events.map((e) => e.event)).toEqual([
+      "start",
+      "step",
+      "plan",
+      "done",
+    ]);
+  });
+});
+
 describe("readSse", () => {
   it("flushes the last event when the stream has no trailing blank line", async () => {
     const enc = new TextEncoder();
@@ -66,7 +130,7 @@ describe("readSse", () => {
         c.close();
       },
     });
-    const events: InvestigateEvent[] = [];
+    const events: StreamEvent[] = [];
 
     await readSse(body, (e) => events.push(e));
 

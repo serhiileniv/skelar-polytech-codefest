@@ -1,58 +1,45 @@
-import { Apple, Globe, Smartphone } from "lucide-react";
-
-import type { CaseDetail, Platform } from "@/api";
+import type { CaseDetail } from "@/api";
 import { cn } from "@/lib/utils";
 
 import { HIGHLIGHT_CLASS, useEvidenceTarget } from "./evidence-focus";
 import { IdChip } from "./outcome-badge";
 import { formatDate } from "./time";
+import { platformLabel } from "./verdict-text";
 
 interface CustomerCardProps {
   detail: CaseDetail;
 }
 
-const PLATFORM_ICON: Record<Platform, typeof Globe> = {
-  web: Globe,
-  ios: Apple,
-  android: Smartphone,
-};
-
 export function CustomerCard({ detail }: CustomerCardProps) {
   const { customer, subscriptions, payments, entitlements } = detail;
-  const PlatformIcon = PLATFORM_ICON[customer.platform];
   const activeSub =
     subscriptions.find((s) => s.status === "active") ?? subscriptions[0];
 
   return (
-    <div className="p-4">
-      <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
+    <div className="border-t border-zinc-200 p-4">
+      <div className="space-y-4">
         <div className="flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[13px] font-semibold text-indigo-700">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-medium text-zinc-600 ring-1 ring-zinc-200">
             {initials(customer.name)}
           </div>
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold">
+            <div className="truncate text-[13px] leading-5 font-semibold text-zinc-900">
               {customer.name}
             </div>
-            <div className="truncate text-xs text-zinc-500">
+            <div className="truncate text-[12px] leading-4 text-zinc-500">
               {customer.email}
             </div>
           </div>
-          <code className="ml-auto shrink-0 font-mono text-[10.5px] text-zinc-400">
+          <code className="ml-auto shrink-0 font-mono text-[11.5px] leading-4 text-zinc-500">
             {customer.id}
           </code>
         </div>
 
-        <dl className="grid grid-cols-3 gap-2 text-xs">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px] leading-5">
           <Fact label="Plan">
             {activeSub ? `${activeSub.plan} · $${activeSub.priceUsd}` : "Free"}
           </Fact>
-          <Fact label="Platform">
-            <span className="inline-flex items-center gap-1">
-              <PlatformIcon className="size-3" />
-              {customer.platform}
-            </span>
-          </Fact>
+          <Fact label="Platform">{platformLabel(customer.platform)}</Fact>
           <Fact label="App">v{customer.appVersion}</Fact>
         </dl>
 
@@ -62,10 +49,10 @@ export function CustomerCard({ detail }: CustomerCardProps) {
               <span>
                 {s.channel === "app_store" ? "App Store" : "Web"} · {s.plan}
               </span>
-              <Pill tone={s.status === "active" ? "good" : "muted"}>
+              <Pill tone={s.status === "canceled" ? "bad" : "good"}>
                 {s.status}
               </Pill>
-              <span className="ml-auto text-zinc-400">
+              <span className="ml-auto text-[12px] text-zinc-500 tabular-nums">
                 {s.status === "active"
                   ? `renews ${formatDate(s.renewsAt)}`
                   : `canceled ${formatDate(s.canceledAt)}`}
@@ -89,7 +76,9 @@ export function CustomerCard({ detail }: CustomerCardProps) {
               >
                 {p.status}
               </Pill>
-              <span className="ml-auto text-zinc-400">{formatDate(p.at)}</span>
+              <span className="ml-auto text-[12px] text-zinc-500 tabular-nums">
+                {formatDate(p.at)}
+              </span>
             </Row>
           ))}
         </Section>
@@ -101,7 +90,7 @@ export function CustomerCard({ detail }: CustomerCardProps) {
               <Pill tone={e.active ? "good" : "bad"}>
                 {e.active ? "active" : "inactive"}
               </Pill>
-              <span className="ml-auto truncate text-zinc-400">
+              <span className="ml-auto truncate text-[12px] text-zinc-500">
                 {e.accountEmail}
               </span>
             </Row>
@@ -129,14 +118,10 @@ function Fact({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-2 py-1.5">
-      <dt className="text-[10px] tracking-wide text-zinc-400 uppercase">
-        {label}
-      </dt>
-      <dd className="mt-0.5 truncate font-medium text-zinc-800 capitalize">
-        {children}
-      </dd>
-    </div>
+    <>
+      <dt className="text-zinc-500">{label}</dt>
+      <dd className="truncate text-zinc-900">{children}</dd>
+    </>
   );
 }
 
@@ -150,15 +135,12 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-zinc-100 pt-2.5">
-      <div className="mb-1.5 flex items-center justify-between text-[10px] font-medium tracking-wide text-zinc-400 uppercase">
-        {title}
-        <span className="rounded-full bg-zinc-100 px-1.5 text-zinc-500 tabular-nums">
-          {count}
-        </span>
+    <section className="border-t border-zinc-100 pt-3">
+      <div className="mb-1.5 text-[12px] leading-4 font-medium text-zinc-500">
+        {title} <span className="tabular-nums">({count})</span>
       </div>
       {count === 0 ? (
-        <div className="text-xs text-zinc-400">None</div>
+        <div className="text-[12px] text-zinc-400">None</div>
       ) : (
         <ul className="space-y-0.5">{children}</ul>
       )}
@@ -172,7 +154,7 @@ function Row({ id, children }: { id: string; children: React.ReactNode }) {
     <li
       {...attrs}
       className={cn(
-        "-mx-1.5 flex scroll-mt-4 items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-zinc-700 transition-colors",
+        "-mx-1.5 flex scroll-mt-4 items-center gap-2 rounded-md px-1.5 py-1 text-[13px] leading-5 text-zinc-700 transition-colors duration-200 motion-reduce:transition-none",
         highlighted && HIGHLIGHT_CLASS,
       )}
     >
@@ -182,10 +164,11 @@ function Row({ id, children }: { id: string; children: React.ReactNode }) {
   );
 }
 
+/** Normal states stay neutral; only problems ("bad") get colour, as text. */
 const PILL_TONE = {
-  good: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  bad: "bg-red-50 text-red-700 ring-red-600/20",
-  muted: "bg-zinc-50 text-zinc-500 ring-zinc-500/20",
+  good: "text-zinc-500",
+  bad: "font-medium text-[#b42318]",
+  muted: "text-zinc-500",
 } as const;
 
 function Pill({
@@ -196,12 +179,7 @@ function Pill({
   children: React.ReactNode;
 }) {
   return (
-    <span
-      className={cn(
-        "rounded-full px-1.5 py-px text-[10.5px] font-medium ring-1 ring-inset",
-        PILL_TONE[tone],
-      )}
-    >
+    <span className={cn("text-[12px] leading-4", PILL_TONE[tone])}>
       {children}
     </span>
   );

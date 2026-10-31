@@ -98,6 +98,47 @@ export function addAudit(
   return { ...state, seq, audit: [...state.audit, { ...entry, id, at }] };
 }
 
+export const MAX_REPLY_CHARS = 3000;
+const AUDIT_PREVIEW_CHARS = 120;
+
+/** Posts a support message (1–3000 chars after trim); open → waiting_customer. Throws 400 otherwise. */
+export function postReply(
+  state: MockState,
+  caseId: string,
+  body: string,
+  now: string,
+): MockState {
+  const text = body.trim();
+  if (text.length < 1 || text.length > MAX_REPLY_CHARS) {
+    throw new ApiRequestError(400, {
+      code: "bad_request",
+      message: `Reply must be 1–${MAX_REPLY_CHARS} characters`,
+    });
+  }
+  const kase = findCase(state, caseId);
+  const message = {
+    id: `msg_s${String(state.seq + 1).padStart(4, "0")}`,
+    from: "support" as const,
+    body: text,
+    at: now,
+  };
+  const status = kase.status === "open" ? "waiting_customer" : kase.status;
+  const withMessage = updateCase(state, caseId, {
+    messages: [...kase.messages, message],
+    status,
+  });
+  return addAudit(
+    withMessage,
+    {
+      caseId,
+      actor: "support",
+      step: "reply",
+      detail: text.slice(0, AUDIT_PREVIEW_CHARS),
+    },
+    now,
+  );
+}
+
 const blocked = (message: string, rule: string): ActionResult => ({
   status: "blocked",
   message,
@@ -157,7 +198,7 @@ function decide(
   }
   switch (req.kind) {
     case "support_action":
-      return supportAction(state, kase, req.action);
+      return supportAction(state, kase, req.action, now);
     case "send_to_tech":
       return sendToTech(state, kase, now);
     case "mark_resolved":
@@ -172,11 +213,113 @@ function supportAction(
   state: MockState,
   kase: Case,
   action: SupportAction,
+  now: string,
 ): Transition {
   const records = findRecords(state, kase.customerId);
-  return action.type === "restore_access"
-    ? restoreAccess(state, records, action.entitlementId)
-    : refundPayment(state, records, action.paymentId);
+  switch (action.type) {
+    case "restore_access":
+      return restoreAccess(state, records, action.entitlementId);
+    case "refund_payment":
+      return refundPayment(state, records, action.paymentId);
+    case "cancel_subscription":
+      return cancelSubscription(state, records, action.subscriptionId, now);
+    case "send_magic_link":
+      return sendMagicLink(state, kase, records);
+  }
+}
+
+/** C1: cancel only an active subscription of this customer. App Store cancels go through the simulated store connector. */
+function cancelSubscription(
+  state: MockState,
+  records: CustomerRecords,
+  subscriptionId: string,
+  now: string,
+): Transition {
+  const sub = records.subscriptions.find((s) => s.id === subscriptionId);
+  if (!sub)
+    return {
+      state,
+      result: blocked(
+        `Subscription ${subscriptionId} does not belong to this customer.`,
+        "C1",
+      ),
+    };
+  if (sub.status !== "active")
+    return {
+      state,
+      result: blocked(`Subscription ${subscriptionId} is not active.`, "C1"),
+    };
+  const next = updateRecords(state, records.customer.id, (r) => ({
+    ...r,
+    subscriptions: r.subscriptions.map((s) =>
+      s.id === subscriptionId
+        ? {
+            ...s,
+            status: "canceled" as const,
+            canceledAt: now,
+            renewsAt: null,
+          }
+        : s,
+    ),
+  }));
+  const via =
+    sub.channel === "app_store" ? " via simulated App Store connector" : "";
+  return {
+    state: next,
+    result: executed(`Canceled ${subscriptionId}${via}.`, "C1"),
+  };
+}
+
+const MAGIC_LINK_STEP = "action:send_magic_link";
+
+/** E1: at most one magic-link email per case. (The mock has no session events, so the reset-request check is the Go gate's alone.) */
+function sendMagicLink(
+  state: MockState,
+  kase: Case,
+  records: CustomerRecords,
+): Transition {
+  const alreadySent = state.audit.some(
+    (a) =>
+      a.caseId === kase.id &&
+      a.step === MAGIC_LINK_STEP &&
+      a.detail.startsWith("executed"),
+  );
+  if (alreadySent)
+    return {
+      state,
+      result: blocked("A login link was already sent for this case.", "E1"),
+    };
+  return {
+    state,
+    result: executed(
+      `One-time login link sent to ${records.customer.email}.`,
+      "E1",
+    ),
+  };
+}
+
+/** F1: Fix-it only for a non-downgraded `user_can_fix` / `support_can_fix`; S1 first. Throws 409 otherwise. */
+export function assertFixAllowed(kase: Case): void {
+  const v = kase.verdict;
+  const refuse = (message: string) =>
+    new ApiRequestError(409, { code: "conflict", message });
+  if (v?.outcome === "suspicious")
+    throw refuse("S1: case is flagged as suspicious; Fix-it is off.");
+  if (!v) throw refuse("F1: investigate the case before Fix-it.");
+  if (v.downgraded)
+    throw refuse("F1: the verdict was downgraded by the validator.");
+  if (v.outcome !== "user_can_fix" && v.outcome !== "support_can_fix")
+    throw refuse(`F1: no safe customer-level fix for ${v.outcome}.`);
+}
+
+/** Gate dry run: what `applyAction` would return now, without keeping any change. */
+export function previewAction(
+  state: MockState,
+  caseId: string,
+  req: ActionRequest,
+  now: string,
+): ActionResult {
+  return decide(state, findCase(state, caseId), req, now).result;
 }
 
 function restoreAccess(

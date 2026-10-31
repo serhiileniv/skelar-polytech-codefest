@@ -15,7 +15,7 @@ const HIGHLIGHT_MS = 2500;
 
 /** Classes for a highlighted record; shared so every target looks the same. */
 export const HIGHLIGHT_CLASS =
-  "rounded-md bg-amber-100 ring-2 ring-amber-400 transition-colors";
+  "rounded-md bg-indigo-50 ring-1 ring-indigo-300 transition-colors duration-200 motion-reduce:transition-none";
 
 interface EvidenceFocus {
   focusedId: string | null;

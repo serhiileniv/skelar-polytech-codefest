@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { RotateCcw, Scale } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -11,7 +10,11 @@ import { toast } from "sonner";
 
 import { api, errorMessage } from "@/api";
 
+import { GhostButton } from "./controls";
+
 const POLL_MS = 3000;
+/** Reset reloads the page, so its toast is handed over via sessionStorage. */
+const RESET_FLAG = "verdict:demo-reset";
 
 const MODE_LABEL: Record<typeof api.mode, string> = {
   mock: "Demo data",
@@ -46,10 +49,25 @@ export function TopBar() {
   const [resetting, setResetting] = useState(false);
   const boardCount = useOpenBoardCount();
 
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(RESET_FLAG) === null) return;
+      sessionStorage.removeItem(RESET_FLAG);
+      toast.success("Demo reset");
+    } catch {
+      // Storage blocked: the reset still happened, only the toast is lost.
+    }
+  }, []);
+
   async function reset() {
     setResetting(true);
     try {
       await api.reset();
+      try {
+        sessionStorage.setItem(RESET_FLAG, "1");
+      } catch {
+        toast.success("Demo reset");
+      }
       window.location.reload();
     } catch (e) {
       toast.error(`Reset failed: ${errorMessage(e)}`);
@@ -64,57 +82,40 @@ export function TopBar() {
   ] as const;
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-8 border-b border-zinc-200 bg-white px-5">
-      <div className="flex items-center gap-2.5">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-sm">
-          <Scale className="size-4" />
+    <header className="flex h-12 shrink-0 items-center gap-6 border-b border-zinc-200 bg-white px-4">
+      <span className="text-[14px] font-semibold tracking-[-0.01em] text-zinc-900">
+        Verdict
+        <span className="ml-2 text-[12px] font-normal tracking-normal text-zinc-500">
+          Support copilot
         </span>
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold tracking-tight">Verdict</span>
-          <span className="text-[11px] text-zinc-500">Support copilot</span>
-        </div>
-      </div>
-      <nav className="flex items-center gap-1">
+      </span>
+      <nav className="flex items-center gap-0.5">
         {nav.map((item) => {
           const active = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex h-8 items-center gap-2 rounded-lg px-3 text-[13px] font-medium transition-colors",
+                "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none motion-reduce:transition-none",
                 active
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
+                  ? "bg-zinc-100 text-zinc-900"
+                  : "text-zinc-500 hover:text-zinc-900",
               )}
             >
               {item.label}
               {item.badge !== null && (
-                <span
-                  className={cn(
-                    "min-w-5 rounded-full px-1.5 text-center text-[11px] leading-5 font-semibold tabular-nums",
-                    active
-                      ? "bg-indigo-600 text-white"
-                      : "bg-zinc-200 text-zinc-700",
-                  )}
-                >
-                  {item.badge}
-                </span>
+                <span className="text-zinc-500 tabular-nums">{item.badge}</span>
               )}
             </Link>
           );
         })}
       </nav>
       <div className="ml-auto flex items-center gap-3">
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset",
-            api.mode === "http"
-              ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20"
-              : "bg-zinc-50 text-zinc-600 ring-zinc-300",
-          )}
-        >
+        <span className="inline-flex items-center gap-1.5 text-[12px] text-zinc-500">
           <span
+            aria-hidden
             className={cn(
               "size-1.5 rounded-full",
               api.mode === "http" ? "bg-emerald-500" : "bg-zinc-400",
@@ -122,15 +123,9 @@ export function TopBar() {
           />
           {MODE_LABEL[api.mode]}
         </span>
-        <button
-          type="button"
-          onClick={reset}
-          disabled={resetting}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-50"
-        >
-          <RotateCcw className={cn("size-3.5", resetting && "animate-spin")} />
-          Reset demo
-        </button>
+        <GhostButton onClick={reset} disabled={resetting}>
+          {resetting ? "Resetting…" : "Reset demo"}
+        </GhostButton>
       </div>
     </header>
   );

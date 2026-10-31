@@ -44,9 +44,9 @@ export function metricsView(m: Metrics): MetricsView {
         : "—",
     downgraded: m.downgraded,
     avgSteps: m.investigated > 0 ? m.avgSteps.toFixed(1) : "—",
-    actions: `${m.actions.executed} / ${m.actions.blocked}`,
+    actions: `${m.actions.executed} · ${m.actions.blocked} blocked`,
     evalAccuracy: m.eval
       ? `${m.eval.correct}/${m.eval.total} (${pct(m.eval.correct, m.eval.total)}%)`
-      : "not run",
+      : "—",
   };
 }

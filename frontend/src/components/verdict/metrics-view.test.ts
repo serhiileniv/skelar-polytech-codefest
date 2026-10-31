@@ -30,7 +30,8 @@ describe("metricsView", () => {
         investigated: "0/7",
         keptFromTech: "—",
         avgSteps: "—",
-        evalAccuracy: "not run",
+        evalAccuracy: "—",
+        actions: "0 · 0 blocked",
         mixLen: 0,
       },
     },
@@ -47,6 +48,7 @@ describe("metricsView", () => {
         },
         keptFromTech: 3,
         avgSteps: 4.25,
+        actions: { executed: 2, blocked: 1 },
         eval: { correct: 6, total: 7, ranAt: "2026-10-31T10:00:00Z" },
       },
       expected: {
@@ -54,6 +56,7 @@ describe("metricsView", () => {
         keptFromTech: "3 (75%)",
         avgSteps: "4.3",
         evalAccuracy: "6/7 (86%)",
+        actions: "2 · 1 blocked",
         mixLen: 3,
       },
     },
@@ -66,6 +69,7 @@ describe("metricsView", () => {
     expect(v.keptFromTech).toBe(expected.keptFromTech);
     expect(v.avgSteps).toBe(expected.avgSteps);
     expect(v.evalAccuracy).toBe(expected.evalAccuracy);
+    expect(v.actions).toBe(expected.actions);
     expect(v.mix).toHaveLength(expected.mixLen);
   });
 

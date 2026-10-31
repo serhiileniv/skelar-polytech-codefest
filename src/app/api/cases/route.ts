@@ -1,9 +1,9 @@
 import type { CaseListItem } from "@/lib/api-contract";
+import { connection } from "next/server";
 import { getDb } from "@/lib/domain/store";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(): Promise<Response> {
+  await connection(); // in-memory demo state: never prerender
   const db = getDb();
   const items: CaseListItem[] = db.cases
     .map((c) => ({

@@ -103,7 +103,7 @@ func FixAgentTools() []ToolSpec {
 		Description: "Close the plan. Call exactly once, last, after queuing the steps.",
 		Properties: map[string]any{
 			"problem":   map[string]any{"type": "string", "minLength": 10, "maxLength": 500, "description": "One sentence: the confirmed problem, citing record ids."},
-			"summary":   map[string]any{"type": "string", "minLength": 3, "maxLength": 300, "description": "One line: how the steps resolve it."},
+			"summary":   map[string]any{"type": "string", "minLength": 3, "maxLength": 300, "description": "One sentence: how the steps resolve it."},
 			"replyBody": text(10, entity.MaxReplyChars),
 		},
 		Required: []string{"problem", "summary", "replyBody"}})

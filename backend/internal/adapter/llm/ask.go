@@ -11,7 +11,7 @@ import (
 	"github.com/serhiileniv/skelar-polytech-codefest/backend/internal/entity"
 )
 
-// askMaxTokens leaves room for thinking plus a ~120-word answer.
+// askMaxTokens leaves room for thinking plus a ~50-word answer.
 const askMaxTokens = 4000
 
 // Answer implements usecase.Answerer: one tool-less live call. In replay mode it reports ErrLLMUnavailable

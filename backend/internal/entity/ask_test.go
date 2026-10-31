@@ -63,6 +63,7 @@ func TestCapAnswer(t *testing.T) {
 	}{
 		{"short kept", "  ok  ", 2},
 		{"long cut", strings.Repeat("word ", 400), AskAnswerMaxRunes},
+		{"120-word answer cut to 600", strings.Repeat("word ", 120), 600},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

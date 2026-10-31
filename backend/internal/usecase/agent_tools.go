@@ -63,7 +63,7 @@ func AgentTools() []ToolSpec {
 				"outcome":      map[string]any{"type": "string", "enum": outcomes},
 				"confidence":   map[string]any{"type": "number", "minimum": 0, "maximum": 1},
 				"customerGoal": text(3, 300),
-				"summary":      map[string]any{"type": "string", "minLength": 3, "maxLength": 800, "description": "For the support member: what happened, citing evidence ids."},
+				"summary":      map[string]any{"type": "string", "minLength": 3, "maxLength": 800, "description": "For the support member, at most 2 sentences (40 words): what happened + what fixes it, citing evidence ids."},
 				"evidence": map[string]any{"type": "array", "maxItems": 12, "items": map[string]any{
 					"type": "object", "additionalProperties": false, "required": []string{"id", "note"},
 					"properties": map[string]any{"id": ids, "note": text(3, 200)}}},
@@ -80,7 +80,7 @@ func AgentTools() []ToolSpec {
 						"signature": map[string]any{"type": "string", "enum": signatures},
 						"title":     text(5, 120), "rootCause": text(5, 500)}},
 				"clarifyingQuestion": map[string]any{"type": "string", "minLength": 5, "maxLength": 300, "description": "need_more_info only."},
-				"replyDraft":         map[string]any{"type": "string", "minLength": 10, "maxLength": 1500, "description": "Message the support member can send to the customer."},
+				"replyDraft":         map[string]any{"type": "string", "minLength": 10, "maxLength": 1500, "description": "At most 70 words, friendly, for the customer. Never claim an action is already done."},
 			},
 			Required: []string{"outcome", "confidence", "customerGoal", "summary", "evidence", "replyDraft"}},
 	}

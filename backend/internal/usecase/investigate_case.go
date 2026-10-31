@@ -37,6 +37,7 @@ type Investigation struct {
 	tools   *caseTools
 	session AgentSession
 	Info    ModelInfo
+	shown   []string // ids the initial prompt already showed the model
 }
 
 // Start checks the case (400/404), takes the per-case lock (409) and opens the model session (503).
@@ -65,7 +66,7 @@ func (u *InvestigateCase) Start(ctx context.Context, caseID string) (*Investigat
 		u.release(caseID)
 		return nil, err
 	}
-	return &Investigation{u: u, kase: kase, session: session, Info: info,
+	return &Investigation{u: u, kase: kase, session: session, Info: info, shown: PromptIDs(kase, cust),
 		tools: &caseTools{store: u.store, kase: kase, customerID: kase.CustomerID}}, nil
 }
 
@@ -209,9 +210,13 @@ func (inv *Investigation) toolError(call ToolCall, msg string) ToolResult {
 	return ToolResult{CallID: call.ID, Content: string(body), IsError: true}
 }
 
-// validationSets collects the customer's own record ids; SeenIDs fills up as tools run.
+// validationSets collects the customer's own record ids. SeenIDs starts with the ids shown in the
+// initial prompt and fills up as tools run.
 func (inv *Investigation) validationSets(ctx context.Context) (entity.ValidationContext, error) {
 	v := entity.ValidationContext{SeenIDs: map[string]bool{}, EntitlementIDs: map[string]bool{}, PaymentIDs: map[string]bool{}, ErrorIDs: map[string]bool{}}
+	for _, id := range inv.shown {
+		v.SeenIDs[id] = true
+	}
 	cid := inv.kase.CustomerID
 	ents, err := inv.u.store.Entitlements(ctx, cid)
 	if err != nil {

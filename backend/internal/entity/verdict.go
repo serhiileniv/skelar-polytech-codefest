@@ -157,7 +157,7 @@ func (a SupportAction) Target() string {
 
 // ValidationContext is what the validator checks the draft against. All sets are scoped to the case's customer.
 type ValidationContext struct {
-	SeenIDs        map[string]bool // every record id a tool returned during this run
+	SeenIDs        map[string]bool // every record id shown in the initial prompt or returned by a tool this run
 	EntitlementIDs map[string]bool // the customer's entitlements
 	PaymentIDs     map[string]bool // the customer's payments
 	ErrorIDs       map[string]bool // the customer's error logs

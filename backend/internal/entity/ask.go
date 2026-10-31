@@ -9,7 +9,7 @@ import (
 // Ask (contract v2): the support agent asks Verdict about a stored verdict.
 const (
 	AskQuestionMaxRunes = 500
-	AskAnswerMaxRunes   = 1200 // ~120 words prompted; hard cap so a runaway answer never reaches the UI
+	AskAnswerMaxRunes   = 600 // ~50 words prompted; hard cap so a runaway answer never reaches the UI
 )
 
 // Answer is the POST /api/cases/{id}/ask body.

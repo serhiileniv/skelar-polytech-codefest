@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -237,6 +238,38 @@ func TestInvestigateInventedEvidenceIsDowngraded(t *testing.T) {
 	}
 	if !slices.ContainsFunc(store.audit, func(a entity.AuditEntry) bool { return a.Step == "verdict_downgraded" }) {
 		t.Error("downgrade not audited")
+	}
+}
+
+func TestInvestigatePromptIDsCountAsSeen(t *testing.T) {
+	const verdict = `{"outcome":"user_can_fix","confidence":0.9,"customerGoal":"Reset password.","summary":"Reset emails are sent but not found.",
+	 "evidence":[{"id":"%s","note":"customer says no email"}],"instructionSteps":["Check the spam folder."],"replyDraft":"Hi, please check your spam folder."}`
+	tests := []struct {
+		name       string
+		cited      string
+		downgraded bool
+	}{
+		{"chat message from the prompt", "msg_0003", false},
+		{"customer id from the prompt", "cust_002", false},
+		{"invented message id", "msg_9999", true},
+		{"another case's message", "msg_0004", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := &scriptedModel{turns: []Turn{{Calls: []ToolCall{call("c1", ToolSubmitVerdict, fmt.Sprintf(verdict, tt.cited))}}}}
+			inv, err := NewInvestigateCase(newFakeStore(), model, fixedNow).Start(context.Background(), "case_102")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, emit := collectEvents()
+			v, err := inv.Run(context.Background(), emit)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if v.Downgraded != tt.downgraded {
+				t.Fatalf("cited %s: downgraded=%v want %v (%v)", tt.cited, v.Downgraded, tt.downgraded, v.ValidationNotes)
+			}
+		})
 	}
 }
 

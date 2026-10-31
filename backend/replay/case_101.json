@@ -1,0 +1,88 @@
+{
+ "caseId": "case_101",
+ "model": "claude-opus-5-5",
+ "source": "scripted",
+ "recordedAt": "2026-10-31T12:00:00Z",
+ "turns": [
+  {
+   "text": "Reading what the customer wants.",
+   "calls": [
+    {
+     "id": "toolu_case_101_1a",
+     "name": "getChat",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Checking which channel bills the subscription.",
+   "calls": [
+    {
+     "id": "toolu_case_101_2a",
+     "name": "getBilling",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Looking for the app deletion in session events.",
+   "calls": [
+    {
+     "id": "toolu_case_101_3a",
+     "name": "getSessionEvents",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Finding the help article for cancelling on iOS.",
+   "calls": [
+    {
+     "id": "toolu_case_101_4a",
+     "name": "searchHelp",
+     "input": {
+      "query": "cancel subscription ios"
+     }
+    }
+   ]
+  },
+  {
+   "text": "Deleting the app never cancels an App Store subscription; the customer can cancel it in Settings.",
+   "calls": [
+    {
+     "id": "toolu_case_101_5a",
+     "name": "submitVerdict",
+     "input": {
+      "outcome": "user_can_fix",
+      "confidence": 0.93,
+      "customerGoal": "Stop being charged for PawPlan.",
+      "summary": "Deleting the app does not cancel an App Store subscription. sub_0001 is still active and billed by Apple; pay_0001 renewed 2 days ago, after the app was deleted (ev_0001). Only the customer can cancel it in iOS Settings.",
+      "evidence": [
+       {
+        "id": "ev_0001",
+        "note": "App deleted on iOS 7 days ago"
+       },
+       {
+        "id": "sub_0001",
+        "note": "Active App Store subscription, renews in 28 days"
+       },
+       {
+        "id": "pay_0001",
+        "note": "$29.99 App Store renewal 2 days ago"
+       }
+      ],
+      "instructionSteps": [
+       "Open Settings on your iPhone",
+       "Tap your name (Apple ID)",
+       "Tap Subscriptions",
+       "Choose PawPlan",
+       "Tap Cancel Subscription"
+      ],
+      "helpArticleId": "help_cancel_ios",
+      "replyDraft": "Hi Emma, sorry for the confusion! Deleting the app doesn't cancel the subscription — it's billed by Apple, so it has to be cancelled in your iPhone settings: Settings → your name → Subscriptions → PawPlan → Cancel Subscription."
+     }
+    }
+   ]
+  }
+ ]
+}

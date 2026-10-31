@@ -1,25 +1,49 @@
 # Verdict backend (Go + Postgres)
 
-Needs Go 1.25+ and Docker. Run everything from `backend/`.
+Needs Go 1.25+ and Docker. Run everything from `backend/`. Works **without an API key** (replay mode).
 
 ```sh
 make env    # backend/.env from .env.example (once)
 make up     # postgres:17 on localhost:5433
 make seed   # migrate + load the deterministic demo world (re-run any time to reset)
 make run    # API on :8080 (migrates on startup)
-curl localhost:8080/health   # {"status":"ok"}
 ```
 
-`make dev` = up + seed + run. `make reset` wipes the volume. `make psql` opens a shell.
+Frontend against it: `cd ../frontend && NEXT_PUBLIC_API_MODE=http NEXT_PUBLIC_API_URL=http://localhost:8080 pnpm dev`.
 
 | Target | What |
 |---|---|
-| `make test` | unit tests (DB tests skip) |
-| `make test-db` | all tests incl. Postgres (re-seeds the DB) |
-| `make lint` | `go vet` + `gofmt` check |
+| `make dev` | up + seed + run |
+| `make test` | unit tests (DB/e2e tests skip) |
+| `make test-db` | everything incl. Postgres and the e2e contract flows (re-seeds the DB) |
+| `make smoke` | the same e2e flows against a running `make run` |
+| `make eval` | investigates the 7 demo cases, scores vs `docs/api.md`, stores accuracy for `/api/metrics` |
+| `make lint` | `go vet` + `gofmt` |
+| `make reset` / `make psql` | wipe the volume / open psql |
 
-**Frontend integration:** the UI calls `NEXT_PUBLIC_API_URL=http://localhost:8080` (see `docs/api.md`). CORS allows the origins in `FRONTEND_ORIGIN` (comma-separated; default `http://localhost:3000,http://127.0.0.1:3000`) — add the deployed frontend URL there. Timestamps are always UTC (`…Z`).
+Shell variables override `.env`: `HTTP_ADDR=:8081 make run`, `VERDICT_RECORD=1 make eval`.
 
-Seed world (port of `seed.ts` from `feat/verdict-backbone`, record-for-record identical): 91 customers, 7 open cases (`case_101`…`case_107`, see `docs/api.md` → Demo cases), 37 silent `cancel_not_synced` customers + 7 look-alikes, 6 help articles.
+## Endpoints (contract: `docs/api.md`)
 
-Layout: `cmd/api` (wiring) · `cmd/seed` · `internal/{entity,usecase,repo/postgres,controller/http,seed,config}` · `migrations/*.sql` (embedded, applied on startup).
+`GET /health` · `GET /api/cases` · `GET /api/cases/{id}` · `POST /api/cases/{id}/investigate` (SSE) · `POST /api/cases/{id}/actions` · `POST /api/cases/{id}/reply` · `GET /api/board` · `GET /api/metrics` · `DELETE /api/state`
+
+## Demo flows (all covered by `e2e/flows_test.go`)
+
+| Case | Investigate → | Then |
+|---|---|---|
+| case_101, case_102 | `user_can_fix` + steps + help article | reply |
+| case_103 | `support_can_fix` → `restore_access ent_0003` | executed **R1**; again → blocked R1 |
+| case_104 | `tech_team` (`cancel_not_synced`) | `send_to_tech` → card with **38** customers; again → merged |
+| case_105 | `support_can_fix` → `refund_payment pay_0006` | executed **P1**; again → blocked **P3** |
+| case_106 | `need_more_info` + clarifying question | mark resolved |
+| case_107 | `suspicious`, no action | any action → blocked **S1** |
+
+## How investigate works
+
+Agent loop in `internal/usecase/investigate_case.go`: ≤ 8 steps; 9 read-only tools bound to the case's customer (no tool takes a customer id; strict input decoding); the last step offers only `submitVerdict`; the verdict is shape-checked and validated in code (evidence ids must come from tool results, action targets must belong to the customer and have been inspected) — otherwise it is downgraded to `need_more_info`. Every tool call and the verdict are audited.
+
+**Model:** `ANTHROPIC_MODEL` (default `claude-opus-5-5`) via `anthropic-sdk-go/v2`, with server-side refusal fallback. **No key** (or `VERDICT_REPLAY=1`) → replays model turns from `replay/<caseId>.json`; tools, validator, gate and audit still run for real. The committed recordings are scripted from the frontend mock's scenarios; with a key, `VERDICT_RECORD=1 make eval` replaces them with real recordings.
+
+## Layout
+
+`cmd/{api,seed,eval}` (wiring) · `internal/entity` (types + pure rules: gate, validator, detectors, board, metrics) · `internal/usecase` (one file per use case + ports) · `internal/repo/postgres` (SQL only) · `internal/controller/http` (handlers, SSE, CORS, errors) · `internal/adapter/llm` (Claude + replay) · `migrations/*.sql` (embedded) · `e2e/` (contract flows).

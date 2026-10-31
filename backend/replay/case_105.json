@@ -1,0 +1,73 @@
+{
+ "caseId": "case_105",
+ "model": "claude-opus-5-5",
+ "source": "scripted",
+ "recordedAt": "2026-10-31T12:00:00Z",
+ "turns": [
+  {
+   "text": "Reading the double-charge complaint.",
+   "calls": [
+    {
+     "id": "toolu_case_105_1a",
+     "name": "getChat",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Looking for two identical charges this morning.",
+   "calls": [
+    {
+     "id": "toolu_case_105_2a",
+     "name": "getBilling",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "Checking why the payment ran twice.",
+   "calls": [
+    {
+     "id": "toolu_case_105_3a",
+     "name": "getErrorLogs",
+     "input": {}
+    }
+   ]
+  },
+  {
+   "text": "pay_0006 duplicates pay_0005; support can refund the duplicate.",
+   "calls": [
+    {
+     "id": "toolu_case_105_4a",
+     "name": "submitVerdict",
+     "input": {
+      "outcome": "support_can_fix",
+      "confidence": 0.94,
+      "customerGoal": "Get the duplicate charge back.",
+      "summary": "pay_0006 duplicates pay_0005 40 seconds later on the same subscription; the retry had no idempotency key (err_0003). Refund the duplicate.",
+      "evidence": [
+       {
+        "id": "pay_0005",
+        "note": "$29.99 renewal"
+       },
+       {
+        "id": "pay_0006",
+        "note": "Identical $29.99 charge 40 s later"
+       },
+       {
+        "id": "err_0003",
+        "note": "IDEMPOTENCY_KEY_MISSING on the retry"
+       }
+      ],
+      "supportAction": {
+       "type": "refund_payment",
+       "paymentId": "pay_0006",
+       "reason": "Duplicate of pay_0005 (err_0003)"
+      },
+      "replyDraft": "Hi Ava, you're right, you were charged twice by mistake. We've refunded the duplicate $29.99; it'll show on your card in 3–5 business days."
+     }
+    }
+   ]
+  }
+ ]
+}

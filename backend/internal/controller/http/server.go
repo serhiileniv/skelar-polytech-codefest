@@ -15,14 +15,28 @@ type Pinger interface {
 
 type Deps struct {
 	DB              Pinger
+	Cases           Cases
+	Actions         Actions
+	Replies         Replies
+	Investigations  Investigations
+	Metrics         MetricsReader
+	Reset           Resetter
 	FrontendOrigins []string // CORS allow-list; "*" allows any origin
 	Log             *slog.Logger
 }
 
-// NewRouter registers every route. Later steps add /api/* handlers here.
+// NewRouter registers every route in docs/api.md.
 func NewRouter(d Deps) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", health(d.DB))
+	mux.HandleFunc("GET /api/cases", listCases(d.Cases))
+	mux.HandleFunc("GET /api/cases/{id}", getCase(d.Cases))
+	mux.HandleFunc("POST /api/cases/{id}/investigate", postInvestigate(d.Investigations))
+	mux.HandleFunc("POST /api/cases/{id}/actions", postAction(d.Actions))
+	mux.HandleFunc("POST /api/cases/{id}/reply", postReply(d.Replies))
+	mux.HandleFunc("GET /api/board", getBoard(d.Cases))
+	mux.HandleFunc("GET /api/metrics", getMetrics(d.Metrics))
+	mux.HandleFunc("DELETE /api/state", deleteState(d.Reset))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, ApiError{"not_found", "No such endpoint."})
 	})

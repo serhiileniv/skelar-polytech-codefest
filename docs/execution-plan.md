@@ -35,15 +35,15 @@ D1 agent loop (≤ 8 steps, read-only tools, forced `submitVerdict`) · D2 3 ver
 - [x] **BE2 · Entities + schema.** `internal/entity/*.go` (types from `docs/api.md` + Event, ErrorLog, Email, HelpArticle), `0001_init.sql` (one table per entity, `audit_log`, `verdicts` as jsonb + outcome column).
 - [x] **BE3 · Seed.** Port `seed.ts` with **the same ids**: ~90 customers, 7 cases, 37 `cancel_not_synced` customers + look-alikes, help articles.
   DoD: the counts in `seed.test.ts` hold (Go test with `count(*)`).
-- [ ] **BE4 · Rules.** Port + table tests: `validateVerdict`, policy gate (A1, R1, P1, P2, P3, S1), board merge, `findBySignature`.
+- [x] **BE4 · Rules.** Port + table tests: `validateVerdict`, policy gate (A1, R1, P1, P2, P3, S1), board merge, `findBySignature`.
   DoD: every case from `validate.test.ts`, `gate.test.ts`, `board.test.ts` passes in Go.
-- [ ] **BE5 · Read endpoints.** Repos + usecases for `GET /api/cases`, `/api/cases/{id}`, `/api/board`, `DELETE /api/state`. Queries scoped by the id from the URL. → **sync ②**
-- [ ] **BE6 · Actions + reply.** `execute_action.go`: gate → one SQL transaction → audit; blocked attempts are audited too. `POST …/actions`, `POST …/reply`.
+- [x] **BE5 · Read endpoints.** Repos + usecases for `GET /api/cases`, `/api/cases/{id}`, `/api/board`, `DELETE /api/state`. Queries scoped by the id from the URL. → **sync ②**
+- [x] **BE6 · Actions + reply.** `execute_action.go`: gate → one SQL transaction → audit; blocked attempts are audited too. `POST …/actions`, `POST …/reply`.
   DoD: case_104 → one card with 38 customers; case_107 refund → `blocked`/`S1` (test).
-- [ ] **BE7 · Investigate (agent loop).** `investigate_case.go`: ≤ 8 steps, 9 read-only tools bound to the case's customer, last step forces `submitVerdict`, `seenIds` → validator → save + audit; SSE events exactly as in `docs/api.md`. `adapter/llm` wraps `anthropic-sdk-go` (verify with `go doc`). Port the prompt; escape customer text into `<chat>`. Fake-LLM tests: tool scoping, forced verdict, invented evidence → downgrade. → **sync ③**
+- [x] **BE7 · Investigate (agent loop).** `investigate_case.go`: ≤ 8 steps, 9 read-only tools bound to the case's customer, last step forces `submitVerdict`, `seenIds` → validator → save + audit; SSE events exactly as in `docs/api.md`. `adapter/llm` wraps `anthropic-sdk-go` (verify with `go doc`). Port the prompt; escape customer text into `<chat>`. Fake-LLM tests: tool scoping, forced verdict, invented evidence → downgrade. → **sync ③**
   DoD: `curl -N -X POST :8080/api/cases/case_103/investigate` streams to `support_can_fix`.
-- [ ] **BE8 · Replay.** Record Messages API responses per case to `backend/replay/<caseId>.json`; replay when there is no key or `VERDICT_REPLAY=1`. Tools still hit the DB. Commit recordings for all 7 cases.
-- [ ] **BE9 · Metrics + eval.** `GET /api/metrics`; `make eval` runs the 7 cases and stores accuracy.
+- [x] **BE8 · Replay.** Record Messages API responses per case to `backend/replay/<caseId>.json`; replay when there is no key or `VERDICT_REPLAY=1`. Tools still hit the DB. Commit recordings for all 7 cases.
+- [x] **BE9 · Metrics + eval.** `GET /api/metrics`; `make eval` runs the 7 cases and stores accuracy.
 
 ## FE track (Next.js)
 

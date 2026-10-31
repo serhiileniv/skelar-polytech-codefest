@@ -9,3 +9,4 @@ One line each: date — decision — why.
 - 2026-10-31 — Agent loop with read-only tools, not a single call — agent picks which sources to read; code validates evidence.
 - 2026-10-31 — Autonomy: agent recommends, human clicks; actions pass a code policy gate.
 - 2026-10-31 — Spec-driven (`docs/specs/`) + `CHANGELOG.md` line per merged change.
+- 2026-10-31 — Backend moves to Go + Postgres (kickoff prompt) — step-by-step plan in `docs/execution-plan.md`; open conflicts D1–D6 listed there.

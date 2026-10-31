@@ -4,6 +4,7 @@ import type { CaseDetail } from "@/api";
 import type { Platform } from "@/api";
 import { cn } from "@/lib/utils";
 
+import { HIGHLIGHT_CLASS, useEvidenceTarget } from "./evidence-focus";
 import { IdChip } from "./outcome-badge";
 import { formatDate } from "./time";
 
@@ -157,8 +158,15 @@ function Section({
 }
 
 function Row({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attrs, highlighted } = useEvidenceTarget([id]);
   return (
-    <li className="flex items-center gap-1.5 text-xs text-zinc-700">
+    <li
+      {...attrs}
+      className={cn(
+        "-mx-1 flex items-center gap-1.5 px-1 py-0.5 text-xs text-zinc-700",
+        highlighted && HIGHLIGHT_CLASS,
+      )}
+    >
       <IdChip id={id} />
       {children}
     </li>

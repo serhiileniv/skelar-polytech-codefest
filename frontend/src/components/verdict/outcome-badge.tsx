@@ -31,12 +31,28 @@ export function OutcomeBadge({
 
 interface IdChipProps {
   id: string;
+  /** Makes the chip a button, e.g. to jump to the record. */
+  onClick?: () => void;
 }
 
-export function IdChip({ id }: IdChipProps) {
-  return (
-    <code className="inline-flex shrink-0 items-center rounded border border-zinc-200 bg-zinc-50 px-1 py-px font-mono text-[10.5px] text-zinc-600">
-      {id}
-    </code>
-  );
+const CHIP_CLASS =
+  "inline-flex shrink-0 items-center rounded border border-zinc-200 bg-zinc-50 px-1 py-px font-mono text-[10.5px] text-zinc-600";
+
+export function IdChip({ id, onClick }: IdChipProps) {
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={`Show ${id}`}
+        className={cn(
+          CHIP_CLASS,
+          "cursor-pointer hover:border-amber-400 hover:bg-amber-50 hover:text-amber-800",
+        )}
+      >
+        {id}
+      </button>
+    );
+  }
+  return <code className={CHIP_CLASS}>{id}</code>;
 }

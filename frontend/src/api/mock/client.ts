@@ -119,7 +119,7 @@ function scriptEvents(
         callId,
         tool: "submitVerdict",
         output: { accepted: true },
-        ids: verdict.evidence.map((e) => e.id),
+        ids: [],
       },
     },
   ];

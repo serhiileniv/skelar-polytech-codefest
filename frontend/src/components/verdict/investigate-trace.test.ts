@@ -99,4 +99,18 @@ describe("traceReducer", () => {
     run([result("a", 1), text("t")], before);
     expect(before).toEqual(snapshot);
   });
+
+  it("keeps the record ids a tool returned, so evidence chips can jump to its row", () => {
+    const withIds: InvestigateEvent = {
+      event: "tool_result",
+      data: {
+        callId: "a",
+        tool: "getErrorLogs",
+        output: {},
+        ids: ["err_0001"],
+      },
+    };
+    const s = run([call("a"), withIds]);
+    expect(s.items[0]).toEqual(expect.objectContaining({ ids: ["err_0001"] }));
+  });
 });

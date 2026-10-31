@@ -17,6 +17,8 @@ import {
 
 import { cn } from "@/lib/utils";
 
+import { HIGHLIGHT_CLASS, useEvidenceTarget } from "./evidence-focus";
+
 interface ToolMeta {
   icon: LucideIcon;
   running: string;
@@ -124,10 +126,20 @@ interface ToolRowProps {
   name: string;
   state: ToolState;
   output?: unknown;
+  ids?: string[];
   errorText?: string;
 }
 
-export function ToolRow({ name, state, output, errorText }: ToolRowProps) {
+const NO_IDS: string[] = [];
+
+export function ToolRow({
+  name,
+  state,
+  output,
+  ids = NO_IDS,
+  errorText,
+}: ToolRowProps) {
+  const { attrs, highlighted } = useEvidenceTarget(ids);
   const meta = TOOLS[name] ?? {
     icon: Wrench,
     running: `Running ${name}`,
@@ -139,7 +151,13 @@ export function ToolRow({ name, state, output, errorText }: ToolRowProps) {
   const count = done && meta.noun ? countOf(output, meta.keys) : null;
 
   return (
-    <li className="flex items-center gap-2 py-1 text-xs">
+    <li
+      {...attrs}
+      className={cn(
+        "-mx-1 flex items-center gap-2 px-1 py-1 text-xs",
+        highlighted && HIGHLIGHT_CLASS,
+      )}
+    >
       <span
         className={cn(
           "flex size-5 shrink-0 items-center justify-center rounded",

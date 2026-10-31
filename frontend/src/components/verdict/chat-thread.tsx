@@ -6,6 +6,7 @@ import { Send } from "lucide-react";
 import type { CaseDetail } from "@/api";
 import { cn } from "@/lib/utils";
 
+import { useEvidenceFocus } from "./evidence-focus";
 import { STATUS_LABEL } from "./outcome";
 import { formatTime } from "./time";
 
@@ -24,6 +25,7 @@ export function ChatThread({
 }: ChatThreadProps) {
   const { case: c, customer } = detail;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { focusedId } = useEvidenceFocus();
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
@@ -68,8 +70,10 @@ export function ChatThread({
                 {mine ? "Support" : customer.name} · {formatTime(m.at)}
               </span>
               <div
+                data-evidence={m.id}
                 className={cn(
-                  "max-w-[75%] rounded-xl px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap",
+                  "max-w-[75%] rounded-xl px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap transition-shadow",
+                  focusedId === m.id && "ring-2 ring-amber-400 ring-offset-2",
                   mine
                     ? "rounded-br-sm bg-indigo-600 text-white"
                     : "rounded-bl-sm bg-zinc-100 text-zinc-900",

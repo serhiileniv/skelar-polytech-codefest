@@ -134,6 +134,7 @@ export function InvestigatePanel({
                   name={item.name}
                   state={item.state}
                   output={item.output}
+                  ids={item.name === "submitVerdict" ? undefined : item.ids}
                   errorText={item.errorText}
                 />
               ),

@@ -24,6 +24,7 @@ import {
 } from "@/api";
 import { cn } from "@/lib/utils";
 
+import { useEvidenceFocus } from "./evidence-focus";
 import { OUTCOME_META } from "./outcome";
 import { IdChip, OutcomeBadge } from "./outcome-badge";
 
@@ -44,6 +45,7 @@ export function VerdictCard({
   onChanged,
 }: VerdictCardProps) {
   const meta = OUTCOME_META[verdict.outcome];
+  const { focus } = useEvidenceFocus();
   return (
     <div className={cn("space-y-3 rounded-lg border p-3", meta.panel)}>
       <div className="flex items-center justify-between gap-2">
@@ -97,7 +99,7 @@ export function VerdictCard({
                 key={`${e.id}-${e.note}`}
                 className="flex items-start gap-1.5 text-xs text-zinc-700"
               >
-                <IdChip id={e.id} />
+                <IdChip id={e.id} onClick={() => focus(e.id)} />
                 <span className="leading-snug">{e.note}</span>
               </li>
             ))}

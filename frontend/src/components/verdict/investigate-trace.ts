@@ -12,6 +12,8 @@ export type TraceItem =
       name: ToolName;
       state: ToolRowState;
       output?: unknown;
+      /** Record ids the tool returned; evidence chips jump here. */
+      ids?: string[];
       errorText?: string;
     };
 
@@ -78,12 +80,12 @@ export function traceReducer(
       return { ...s, items: [...s.items, item] };
     }
     case "tool_result": {
-      const { callId, output } = action.data;
+      const { callId, output, ids } = action.data;
       return {
         ...s,
         items: s.items.map((i) =>
           i.kind === "tool" && i.key === callId
-            ? { ...i, state: "output-available", output }
+            ? { ...i, state: "output-available", output, ids }
             : i,
         ),
       };

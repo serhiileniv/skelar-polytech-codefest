@@ -5,7 +5,7 @@ import { TopBar } from "@/components/verdict/top-bar";
 
 export default function InboxPage() {
   return (
-    <div className="flex h-dvh flex-col bg-white text-zinc-900">
+    <div className="flex h-dvh flex-col bg-zinc-100 text-zinc-900">
       <TopBar />
       <MetricsStrip />
       <EvidenceFocusProvider>

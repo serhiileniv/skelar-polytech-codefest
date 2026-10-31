@@ -17,6 +17,8 @@ export function Inbox() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  /** Last text the copilot inserted per case; drives the "Suggested by Verdict" badge. */
+  const [suggestions, setSuggestions] = useState<Record<string, string>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const selectedIdRef = useRef<string | null>(null);
 
@@ -69,6 +71,12 @@ export function Inbox() {
   const setDraft = (value: string) => {
     if (selectedId) setDrafts((d) => ({ ...d, [selectedId]: value }));
   };
+  const insertSuggestion = (text: string) => {
+    if (selectedId) setSuggestions((s) => ({ ...s, [selectedId]: text }));
+    setDraft(text);
+  };
+  const suggested =
+    selectedId !== null && draft !== "" && draft === suggestions[selectedId];
 
   async function send(body: string) {
     if (!selectedId) return;
@@ -84,7 +92,7 @@ export function Inbox() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className="flex min-h-0 flex-1 gap-3 p-3">
       <CaseList
         cases={cases}
         selectedId={selectedId}
@@ -99,20 +107,21 @@ export function Inbox() {
           <ChatThread
             detail={current}
             draft={draft}
+            suggested={suggested}
             onDraftChange={setDraft}
             onSend={send}
           />
-          <aside className="min-h-0 w-[380px] shrink-0 overflow-y-auto border-l border-zinc-200 bg-white">
-            <CustomerCard detail={current} />
+          <aside className="min-h-0 w-[440px] shrink-0 overflow-y-auto rounded-xl border border-zinc-200 bg-white">
             <InvestigatePanel
               key={current.case.id}
               caseId={current.case.id}
               caseStatus={current.case.status}
               storedVerdict={current.case.verdict}
               draft={draft}
-              onInsert={setDraft}
+              onInsert={insertSuggestion}
               onChanged={refreshAll}
             />
+            <CustomerCard detail={current} />
           </aside>
         </>
       )}
@@ -122,7 +131,7 @@ export function Inbox() {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-1 items-center justify-center text-sm text-zinc-400">
+    <div className="flex flex-1 items-center justify-center rounded-xl border border-zinc-200 bg-white text-sm text-zinc-400">
       {children}
     </div>
   );

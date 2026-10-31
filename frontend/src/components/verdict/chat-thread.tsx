@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import { Send, Sparkles } from "lucide-react";
 
-import type { CaseDetail } from "@/api";
+import type { CaseDetail, CaseStatus } from "@/api";
 import { cn } from "@/lib/utils";
 
 import { useEvidenceFocus } from "./evidence-focus";
@@ -13,13 +13,23 @@ import { formatTime } from "./time";
 interface ChatThreadProps {
   detail: CaseDetail;
   draft: string;
+  /** True while the draft is exactly the text the copilot inserted. */
+  suggested: boolean;
   onDraftChange: (value: string) => void;
   onSend: (body: string) => Promise<void>;
 }
 
+const STATUS_PILL: Record<CaseStatus, string> = {
+  open: "bg-indigo-50 text-indigo-700 ring-indigo-600/20",
+  waiting_customer: "bg-amber-50 text-amber-800 ring-amber-600/25",
+  with_tech: "bg-violet-50 text-violet-700 ring-violet-600/20",
+  resolved: "bg-zinc-100 text-zinc-600 ring-zinc-400/30",
+};
+
 export function ChatThread({
   detail,
   draft,
+  suggested,
   onDraftChange,
   onSend,
 }: ChatThreadProps) {
@@ -34,7 +44,7 @@ export function ChatThread({
 
   async function send() {
     const body = draft.trim();
-    if (!body) return;
+    if (!body || sending) return;
     setSending(true);
     try {
       await onSend(body);
@@ -44,17 +54,31 @@ export function ChatThread({
   }
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
-      <div className="flex h-11 shrink-0 items-center gap-3 border-b border-zinc-200 px-5">
-        <h1 className="truncate text-[13px] font-semibold">{c.subject}</h1>
-        <span className="shrink-0 text-xs text-zinc-400">
-          {c.id} · {STATUS_LABEL[c.status]}
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <header className="flex shrink-0 items-start justify-between gap-4 border-b border-zinc-200 px-6 py-3.5">
+        <div className="min-w-0">
+          <h1 className="truncate text-[15px] font-semibold text-zinc-900">
+            {c.subject}
+          </h1>
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
+            <span className="truncate">{customer.name}</span>
+            <span className="text-zinc-300">·</span>
+            <code className="font-mono text-[11px] text-zinc-500">{c.id}</code>
+          </p>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset",
+            STATUS_PILL[c.status],
+          )}
+        >
+          {STATUS_LABEL[c.status]}
         </span>
-      </div>
+      </header>
 
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5"
+        className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-zinc-50/50 px-6 py-6"
       >
         {c.messages.map((m) => {
           const mine = m.from === "support";
@@ -62,21 +86,24 @@ export function ChatThread({
             <div
               key={m.id}
               className={cn(
-                "flex flex-col gap-1",
+                "flex flex-col gap-1.5",
                 mine ? "items-end" : "items-start",
               )}
             >
-              <span className="text-[11px] text-zinc-400">
-                {mine ? "Support" : customer.name} · {formatTime(m.at)}
+              <span className="px-1 text-[11px] text-zinc-400">
+                <span className="font-medium text-zinc-600">
+                  {mine ? "Support" : customer.name}
+                </span>{" "}
+                · {formatTime(m.at)}
               </span>
               <div
                 data-evidence={m.id}
                 className={cn(
-                  "max-w-[75%] rounded-xl px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap transition-shadow",
+                  "max-w-[75%] rounded-2xl px-4 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap transition-shadow",
                   focusedId === m.id && "ring-2 ring-amber-400 ring-offset-2",
                   mine
-                    ? "rounded-br-sm bg-indigo-600 text-white"
-                    : "rounded-bl-sm bg-zinc-100 text-zinc-900",
+                    ? "rounded-br-md bg-indigo-600 text-white"
+                    : "rounded-bl-md border border-zinc-200 bg-zinc-100 text-zinc-900",
                 )}
               >
                 {m.body}
@@ -86,14 +113,30 @@ export function ChatThread({
         })}
       </div>
 
-      <div className="shrink-0 border-t border-zinc-200 p-3">
-        <div className="rounded-lg border border-zinc-200 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100">
+      <div className="shrink-0 border-t border-zinc-200 bg-white p-4">
+        <div
+          className={cn(
+            "rounded-xl border bg-white shadow-sm transition-colors focus-within:ring-2",
+            suggested
+              ? "border-indigo-300 focus-within:ring-indigo-100"
+              : "border-zinc-200 focus-within:border-indigo-400 focus-within:ring-indigo-100",
+          )}
+        >
+          {suggested && (
+            <div className="px-3 pt-2.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 ring-1 ring-indigo-600/20 ring-inset">
+                <Sparkles className="size-3" />
+                Suggested by Verdict
+              </span>
+            </div>
+          )}
           <textarea
             value={draft}
             onChange={(e) => onDraftChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void send();
             }}
+            aria-label={`Reply to ${customer.name}`}
             placeholder={`Reply to ${customer.name}…`}
             rows={
               draft
@@ -102,15 +145,15 @@ export function ChatThread({
             }
             className="block w-full resize-none bg-transparent px-3 py-2.5 text-[13.5px] leading-relaxed outline-none placeholder:text-zinc-400"
           />
-          <div className="flex items-center justify-between px-2 pb-2">
+          <div className="flex items-center justify-between border-t border-zinc-100 px-3 py-2">
             <span className="text-[11px] text-zinc-400">⌘↵ to send</span>
             <button
               type="button"
               onClick={() => void send()}
               disabled={sending || !draft.trim()}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md bg-indigo-600 px-3 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 text-xs font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-40"
             >
-              <Send className="size-3" />
+              <Send className="size-3.5" />
               Send
             </button>
           </div>

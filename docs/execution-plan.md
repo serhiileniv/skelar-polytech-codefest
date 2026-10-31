@@ -47,12 +47,12 @@ D1 agent loop (≤ 8 steps, read-only tools, forced `submitVerdict`) · D2 3 ver
 
 ## FE track (Next.js)
 
-- [ ] **FE1 · Move UI.** Copy `src/app` + `src/components` from `feat/verdict-backbone` into `frontend/`; drop `src/lib` (TS backend) and `src/app/api`.
-- [ ] **FE2 · Typed client.** `frontend/src/api/types.ts` = the types from `docs/api.md` verbatim. `ApiClient` interface with two implementations: `http` (`NEXT_PUBLIC_API_URL`) and `mock`. Switch with `NEXT_PUBLIC_API_MODE`.
-- [ ] **FE3 · Mock data.** Fixtures for the 7 demo cases (`frontend/src/api/mock/`), a board card for `cancel_not_synced`, metrics. The mock applies actions in memory (restore → `executed`, case_107 → `blocked`/`S1`).
-- [ ] **FE4 · Inbox + board on the client.** Case list, chat, customer card, reply box, tech board — all through `ApiClient`, toasts from `ApiError.message`.
-- [ ] **FE5 · Investigate panel on SSE.** `fetch` + SSE parser; trace row per `tool_call`/`tool_result`; verdict card for all 5 outcomes (3 verdicts + 2 guard states, `downgraded` notice, replay badge). The mock replays a scripted stream per case with delays.
-- [ ] **FE6 · Action buttons.** Restore / refund / send to tech / resolve → `ActionResult` toast; the reply box is prefilled from `verdict.replyDraft`.
+- [x] **FE1 · Move UI.** Copy `src/app` + `src/components` from `feat/verdict-backbone` into `frontend/`; drop `src/lib` (TS backend) and `src/app/api`.
+- [x] **FE2 · Typed client.** `frontend/src/api/types.ts` = the types from `docs/api.md` verbatim. `ApiClient` interface with two implementations: `http` (`NEXT_PUBLIC_API_URL`) and `mock`. Switch with `NEXT_PUBLIC_API_MODE`.
+- [x] **FE3 · Mock data.** Fixtures for the 7 demo cases (`frontend/src/api/mock/`), a board card for `cancel_not_synced`, metrics. The mock applies actions in memory (restore → `executed`, case_107 → `blocked`/`S1`).
+- [x] **FE4 · Inbox + board on the client.** Case list, chat, customer card, reply box, tech board — all through `ApiClient`, toasts from `ApiError.message`.
+- [x] **FE5 · Investigate panel on SSE.** `fetch` + SSE parser; trace row per `tool_call`/`tool_result`; verdict card for all 5 outcomes (3 verdicts + 2 guard states, `downgraded` notice, replay badge). The mock replays a scripted stream per case with delays.
+- [x] **FE6 · Action buttons.** Restore / refund / send to tech / resolve → `ActionResult` toast; the reply box is prefilled from `verdict.replyDraft`.
 - [ ] **FE7 · Metrics strip.** Outcome mix, kept from tech, downgrades, eval accuracy.
 - [ ] **FE8 · Switch to real.** After sync ② reads go `http`; after sync ③ investigate goes `http`. Mock stays as a fallback.
 

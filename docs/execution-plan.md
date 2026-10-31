@@ -30,10 +30,10 @@ D1 agent loop (≤ 8 steps, read-only tools, forced `submitVerdict`) · D2 3 ver
 
 ## BE track (Go)
 
-- [ ] **BE1 · Skeleton.** `backend/` layout, `go.mod`, `docker-compose.yml` (postgres:17), migration runner on startup, `GET /health`, CORS from `FRONTEND_ORIGIN`, error mapping to `ApiError`, `Makefile` (`up migrate seed run test lint eval`), `.env.example`.
+- [x] **BE1 · Skeleton.** `backend/` layout, `go.mod`, `docker-compose.yml` (postgres:17), migration runner on startup, `GET /health`, CORS from `FRONTEND_ORIGIN`, error mapping to `ApiError`, `Makefile` (`up migrate seed run test lint eval`), `.env.example`.
   DoD: `make up && make run` → `curl :8080/health` = `{"status":"ok"}`.
-- [ ] **BE2 · Entities + schema.** `internal/entity/*.go` (types from `docs/api.md` + Event, ErrorLog, Email, HelpArticle), `0001_init.sql` (one table per entity, `audit_log`, `verdicts` as jsonb + outcome column).
-- [ ] **BE3 · Seed.** Port `seed.ts` with **the same ids**: ~90 customers, 7 cases, 37 `cancel_not_synced` customers + look-alikes, help articles.
+- [x] **BE2 · Entities + schema.** `internal/entity/*.go` (types from `docs/api.md` + Event, ErrorLog, Email, HelpArticle), `0001_init.sql` (one table per entity, `audit_log`, `verdicts` as jsonb + outcome column).
+- [x] **BE3 · Seed.** Port `seed.ts` with **the same ids**: ~90 customers, 7 cases, 37 `cancel_not_synced` customers + look-alikes, help articles.
   DoD: the counts in `seed.test.ts` hold (Go test with `count(*)`).
 - [ ] **BE4 · Rules.** Port + table tests: `validateVerdict`, policy gate (A1, R1, P1, P2, P3, S1), board merge, `findBySignature`.
   DoD: every case from `validate.test.ts`, `gate.test.ts`, `board.test.ts` passes in Go.

@@ -8,10 +8,9 @@ import { toast } from "sonner";
 import { api, errorMessage, type CaseDetail, type CaseListItem } from "@/api";
 import { CaseList } from "./case-list";
 import { ChatThread } from "./chat-thread";
-import { CustomerCard } from "./customer-card";
+import { CopilotPane } from "./copilot-pane";
 import { appendDraft } from "./suggested-reply";
 import type { Proposal } from "./suggested-reply-card";
-import { InvestigatePanel } from "./investigate-panel";
 
 const POLL_MS = 3000;
 const CASE_PARAM = "case";
@@ -155,17 +154,12 @@ export function Inbox() {
             onDraftChange={setDraft}
             onSend={send}
           />
-          <aside className="bg-copilot border-t-copilot-line flex min-h-0 w-[440px] shrink-0 flex-col overflow-y-auto rounded-lg border border-t-2 border-zinc-200">
-            <InvestigatePanel
-              key={current.case.id}
-              caseId={current.case.id}
-              caseStatus={current.case.status}
-              storedVerdict={current.case.verdict}
-              onPropose={(text) => propose(current.case.id, text)}
-              onChanged={refreshAll}
-            />
-            <CustomerCard detail={current} />
-          </aside>
+          <CopilotPane
+            key={current.case.id}
+            detail={current}
+            onPropose={(text) => propose(current.case.id, text)}
+            onChanged={refreshAll}
+          />
         </>
       )}
     </div>

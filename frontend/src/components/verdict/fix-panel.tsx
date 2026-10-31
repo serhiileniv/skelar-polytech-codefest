@@ -16,7 +16,7 @@ import {
 } from "@/api";
 import { cn } from "@/lib/utils";
 
-import { Field, GhostButton, PrimaryButton, RuleChip } from "./controls";
+import { GhostButton, PrimaryButton, RuleChip } from "./controls";
 import {
   capabilityGroups,
   defaultSelection,
@@ -26,20 +26,30 @@ import {
   toggleStep,
 } from "./fix-view";
 import { INITIAL_TRACE, traceReducer } from "./investigate-trace";
-import { TraceCard } from "./trace";
+import { RunSteps } from "./trace";
 
 interface FixPanelProps {
   caseId: string;
   /** Case already resolved: Fix-it cannot start. */
   closed: boolean;
   onChanged: () => void;
+  /** True from start until Discard/Close; the parent hides its other actions meanwhile. */
+  onActiveChange: (active: boolean) => void;
+  /** Shown next to the Fix-it button before it starts (reply, Mark resolved). */
+  children?: React.ReactNode;
 }
 
 const isAbort = (e: unknown): boolean =>
   e instanceof DOMException && e.name === "AbortError";
 
 /** Fix-it: live trace of the fix loop, then a plan support approves step by step. */
-export function FixPanel({ caseId, closed, onChanged }: FixPanelProps) {
+export function FixPanel({
+  caseId,
+  closed,
+  onChanged,
+  onActiveChange,
+  children,
+}: FixPanelProps) {
   const [trace, dispatch] = useReducer(traceReducer, INITIAL_TRACE);
   const [running, setRunning] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -59,8 +69,14 @@ export function FixPanel({ caseId, closed, onChanged }: FixPanelProps) {
     setError(null);
   }
 
+  function close() {
+    reset();
+    onActiveChange(false);
+  }
+
   async function start() {
     reset();
+    onActiveChange(true);
     const controller = new AbortController();
     abortRef.current = controller;
     setRunning(true);
@@ -101,14 +117,15 @@ export function FixPanel({ caseId, closed, onChanged }: FixPanelProps) {
 
   const started = trace.started || running;
   // Resolved case: nothing to fix, so no disabled button either.
-  if (!started && !error && closed) return null;
   if (!started && !error)
     return (
-      <div className="space-y-1.5">
-        <PrimaryButton disabled={closed} onClick={() => void start()}>
-          Fix it for the customer
-        </PrimaryButton>
-        <FixCapabilities />
+      <div className="flex flex-wrap items-center gap-2">
+        {!closed && (
+          <PrimaryButton onClick={() => void start()}>
+            Fix it for the customer
+          </PrimaryButton>
+        )}
+        {children}
       </div>
     );
 
@@ -116,7 +133,7 @@ export function FixPanel({ caseId, closed, onChanged }: FixPanelProps) {
   return (
     <div className="space-y-2">
       {started && !(trace.error && trace.items.length === 0) && (
-        <TraceCard trace={trace} running={running} label="Fix-it" />
+        <RunSteps trace={trace} running={running} label="Fix-it" />
       )}
       {(error ?? trace.error) && (
         <p className="text-[13px] leading-5 text-[#b42318]">
@@ -131,16 +148,16 @@ export function FixPanel({ caseId, closed, onChanged }: FixPanelProps) {
           approving={approving}
           onToggle={(id) => setSelected((s) => toggleStep(s, id))}
           onApprove={() => void approve(plan)}
-          onDiscard={reset}
+          onDiscard={close}
         />
       )}
-      {!running && !plan && <GhostButton onClick={reset}>Close</GhostButton>}
+      {!running && !plan && <GhostButton onClick={close}>Close</GhostButton>}
     </div>
   );
 }
 
 /** Collapsible catalog from `GET /api/fix/capabilities`, loaded on first open. */
-function FixCapabilities() {
+export function FixCapabilities() {
   const [caps, setCaps] = useState<FixCapability[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -158,8 +175,7 @@ function FixCapabilities() {
       onToggle={(e) => load(e.currentTarget.open)}
     >
       <summary className="w-fit cursor-pointer list-none font-medium text-indigo-700 hover:text-indigo-800">
-        <span className="group-open:hidden">What Fix-it can do</span>
-        <span className="hidden group-open:inline">Hide</span>
+        What Fix-it can do
       </summary>
       <div className="mt-2 space-y-3 border-l-2 border-zinc-200 py-1 pl-3">
         {error && <p className="text-[#b42318]">{error}</p>}
@@ -216,23 +232,30 @@ function PlanCard({
 }: PlanCardProps) {
   const results = new Map(run?.steps.map((s) => [s.stepId, s]));
   const n = selected.length;
+  const ref = useRef<HTMLElement>(null);
+  // The plan replaces the next step: bring it into view once it arrives.
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
   return (
-    <article className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+    <article
+      ref={ref}
+      className="scroll-mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white"
+    >
       <header className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2">
         <span className="text-[13px] leading-[18px] font-semibold text-zinc-900">
           Fix plan
         </span>
         {run && <RunBadge run={run} />}
       </header>
-      <div className="space-y-3 px-3 py-3">
-        <Field label="Problem">
-          <p className="text-[13px] font-medium text-zinc-900">
-            {plan.problem}
-          </p>
-        </Field>
-        <Field label="Plan">
-          <p className="text-[13px] leading-5 text-zinc-700">{plan.summary}</p>
-        </Field>
+      <div className="px-3 py-2.5">
+        <p
+          title={plan.summary}
+          className="line-clamp-2 text-[13px] leading-5 text-zinc-700"
+        >
+          <span className="text-zinc-500">Problem · </span>
+          <span className="font-medium text-zinc-900">{plan.problem}</span>
+        </p>
       </div>
       <ol className="divide-y divide-zinc-100 border-t border-zinc-100">
         {planRows(plan).map((row, i) =>
@@ -335,7 +358,9 @@ function StepRow({ n, step, checked, locked, result, onToggle }: StepRowProps) {
         >
           {step.title}
         </label>
-        <p className="text-[12px] leading-4 text-zinc-600">{step.detail}</p>
+        <p className="line-clamp-2 text-[12px] leading-4 text-zinc-600">
+          {step.detail}
+        </p>
         {auto && <GateLine step={auto} result={result} />}
       </div>
     </li>

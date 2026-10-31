@@ -37,7 +37,7 @@ interface AskVerdictProps {
   enabled: boolean;
 }
 
-/** "Ask Verdict why…": support asks, Verdict answers from the verdict's records with id chips. */
+/** "Ask Resolly why…" pinned to the pane bottom: support asks, the agent answers from the verdict's records with id chips. */
 export function AskVerdict({ caseId, enabled }: AskVerdictProps) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
@@ -80,51 +80,54 @@ export function AskVerdict({ caseId, enabled }: AskVerdictProps) {
   }
 
   return (
-    <div className="space-y-2 border-t border-zinc-200 p-4">
-      <div className="text-[12px] leading-4 font-medium text-zinc-500">
-        Ask Verdict
-      </div>
-      {turns.map((t) => (
-        <div key={t.id} className="space-y-2">
-          <SupportBubble>{t.question}</SupportBubble>
-          {t.state === "loading" && (
-            <AgentBubble>
-              <TypingDots />
-            </AgentBubble>
-          )}
-          {t.state === "done" && (
-            <AgentBubble>
-              <p className="whitespace-pre-line">{t.answer}</p>
-              {t.evidence.length > 0 && <IdChips ids={t.evidence} />}
-            </AgentBubble>
-          )}
-          {t.state === "error" && (
-            <div className="flex items-center gap-2 text-[13px] leading-5 text-[#b42318]">
-              <span className="min-w-0 flex-1">
-                Couldn&apos;t answer: {t.error}
-              </span>
-              <GhostButton disabled={!canAsk} onClick={() => retry(t)}>
-                Retry
-              </GhostButton>
+    <div className="shrink-0 space-y-2 border-t border-zinc-200 bg-white/60 px-4 py-3">
+      {turns.length > 0 && (
+        <div className="max-h-44 space-y-2 overflow-y-auto">
+          {turns.map((t) => (
+            <div key={t.id} className="space-y-1.5">
+              <SupportBubble>{t.question}</SupportBubble>
+              {t.state === "loading" && (
+                <AgentBubble>
+                  <TypingDots label="Resolly is typing" />
+                </AgentBubble>
+              )}
+              {t.state === "done" && (
+                <AgentBubble>
+                  <p className="whitespace-pre-line">{t.answer}</p>
+                  {t.evidence.length > 0 && <IdChips ids={t.evidence} />}
+                </AgentBubble>
+              )}
+              {t.state === "error" && (
+                <div className="flex items-center gap-2 text-[13px] leading-5 text-[#b42318]">
+                  <span className="min-w-0 flex-1">
+                    Couldn&apos;t answer: {t.error}
+                  </span>
+                  <GhostButton disabled={!canAsk} onClick={() => retry(t)}>
+                    Retry
+                  </GhostButton>
+                </div>
+              )}
             </div>
-          )}
+          ))}
+          <div ref={endRef} />
         </div>
-      ))}
-      <div ref={endRef} />
+      )}
 
-      <div className="flex flex-wrap gap-1.5">
-        {QUICK_QUESTIONS.map((q) => (
-          <button
-            key={q}
-            type="button"
-            disabled={!canAsk}
-            onClick={() => ask(q)}
-            className="h-7 rounded-md border border-zinc-200 bg-white px-2 text-[12px] text-zinc-700 transition-colors duration-100 hover:bg-zinc-50 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none disabled:cursor-not-allowed disabled:text-zinc-400 disabled:hover:bg-white motion-reduce:transition-none"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
+      {turns.length === 0 && enabled && (
+        <div className="flex flex-wrap gap-1.5">
+          {QUICK_QUESTIONS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              disabled={!canAsk}
+              onClick={() => ask(q)}
+              className="h-6 rounded-md border border-zinc-200 bg-white px-2 text-[12px] text-zinc-600 transition-colors duration-100 hover:bg-zinc-50 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none disabled:cursor-not-allowed disabled:text-zinc-400 disabled:hover:bg-white motion-reduce:transition-none"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -140,11 +143,11 @@ export function AskVerdict({ caseId, enabled }: AskVerdictProps) {
           onChange={(e) => setQuestion(e.target.value)}
           disabled={!enabled}
           maxLength={MAX_QUESTION_CHARS}
-          aria-label="Ask Verdict"
+          aria-label="Ask Resolly"
           placeholder={
             enabled
-              ? "Ask Verdict why…"
-              : "Ask Verdict why… (after the verdict)"
+              ? "Ask Resolly why…"
+              : "Ask Resolly why… (after the verdict)"
           }
           className="h-9 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed"
         />

@@ -1,12 +1,13 @@
-import type { Verdict } from "@/api";
+import type { CaseDetail, Verdict } from "@/api";
 
+import { fixAllowed } from "./fix-view";
 import { groupSteps, type TraceItem } from "./investigate-trace";
 import { FINAL_TOOLS, countOf, metaOf, plural } from "./tool-meta";
 
 export type BubbleToolState = "running" | "done" | "failed";
 
 export interface BubbleTool {
-  /** "Checking billing" while running, "Checked billing" once done. */
+  /** "Checking billing" while running, "Billing" once done. */
   label: string;
   /** "2 payments"; null when the output has nothing to count. */
   count: string | null;
@@ -22,11 +23,6 @@ export interface StepBubble {
   text: string | null;
   /** Null for a thought without a tool, or for the final submit step. */
   tool: BubbleTool | null;
-}
-
-export interface Reason {
-  text: string;
-  ids: string[];
 }
 
 /** Words ending in -ing that are not a gerund opener. */
@@ -57,7 +53,7 @@ function toolOf(item: Extract<TraceItem, { kind: "tool" }>): BubbleTool | null {
         ? countOf(item.output, meta.keys)
         : ids.length || null;
   return {
-    label: state === "running" ? meta.running : meta.done,
+    label: state === "running" ? meta.running : (meta.subject ?? meta.done),
     count: n === null ? null : plural(n, meta.noun ?? "record"),
     ids: state === "done" ? ids : [],
     state,
@@ -86,10 +82,90 @@ export function awaitingAgent(
   return !last || last.tool?.state !== "running";
 }
 
-/** "Because" bullets: one per cited record; the summary when nothing is cited. */
-export function verdictReasons(v: Verdict): Reason[] {
-  if (v.evidence.length === 0) return [{ text: v.summary, ids: [] }];
-  return v.evidence.map((e) => ({ text: e.note, ids: [e.id] }));
+/** Finished read tools in a run: "Checked 6 sources". */
+export function sourcesChecked(items: readonly TraceItem[]): number {
+  return items.filter(
+    (i) =>
+      i.kind === "tool" &&
+      i.state === "output-available" &&
+      !FINAL_TOOLS.has(i.name),
+  ).length;
+}
+
+export interface CurrentThought {
+  /** Key of the running step line the thought belongs under; null when the agent is between tools. */
+  key: string | null;
+  text: string | null;
+}
+
+/** The agent's words for the step in progress only; finished steps show just their line. */
+export function currentThought(
+  bubbles: readonly StepBubble[],
+  running: boolean,
+): CurrentThought {
+  const last = bubbles.at(-1);
+  if (!running || !last) return { key: null, text: null };
+  if (last.tool?.state === "running") return { key: last.key, text: last.text };
+  return { key: null, text: last.tool ? null : last.text };
+}
+
+export type PrimaryAction =
+  | "fix"
+  | "support_action"
+  | "insert_instruction"
+  | "send_to_tech"
+  | "ask_clarifying";
+
+export type OtherAction = "support_action" | "insert_instruction";
+
+export interface NextStepActions {
+  /** The one highlighted action; null for `suspicious`. */
+  primary: PrimaryAction | null;
+  /** Manual alternatives behind "Other actions". */
+  other: OtherAction[];
+  /** "Use suggested reply" as a secondary text button. */
+  reply: boolean;
+}
+
+/** One primary action per outcome; Fix-it wins when rule F1 allows it, the manual action moves to "Other actions". */
+export function nextStepActions(v: Verdict): NextStepActions {
+  const reply = v.outcome !== "need_more_info" && v.replyDraft.trim() !== "";
+  const canFix = fixAllowed(v);
+  switch (v.outcome) {
+    case "support_can_fix": {
+      const manual: OtherAction[] = v.supportAction ? ["support_action"] : [];
+      if (canFix) return { primary: "fix", other: manual, reply };
+      return { primary: manual[0] ?? null, other: [], reply };
+    }
+    case "user_can_fix":
+      if (canFix)
+        return { primary: "fix", other: ["insert_instruction"], reply };
+      return { primary: "insert_instruction", other: [], reply };
+    case "tech_team":
+      return { primary: "send_to_tech", other: [], reply };
+    case "need_more_info":
+      return { primary: "ask_clarifying", other: [], reply };
+    case "suspicious":
+      return { primary: null, other: [], reply };
+  }
+}
+
+/** Above this the customer's goal is left out; the summary already covers it. */
+const SHORT_GOAL_CHARS = 70;
+
+export function shortGoal(v: Verdict): string | null {
+  const goal = v.customerGoal.trim();
+  return goal !== "" && goal.length <= SHORT_GOAL_CHARS ? goal : null;
+}
+
+/** Ids shown on the Customer tab; an evidence click on one switches to it. */
+export function customerRecordIds(detail: CaseDetail): Set<string> {
+  return new Set([
+    detail.customer.id,
+    ...detail.subscriptions.map((s) => s.id),
+    ...detail.payments.map((p) => p.id),
+    ...detail.entitlements.map((e) => e.id),
+  ]);
 }
 
 export function confidencePct(v: Verdict): number {
@@ -113,7 +189,7 @@ export function typewriterLength(
   );
 }
 
-/** Quick questions under the Ask input. */
+/** Quick questions above the Ask input, until the first question. */
 export const QUICK_QUESTIONS = [
   "Why this outcome?",
   "What evidence?",

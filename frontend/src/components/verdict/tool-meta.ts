@@ -3,6 +3,8 @@
 export interface ToolMeta {
   running: string;
   done: string;
+  /** Short subject for a finished step, e.g. "Billing" in "Billing · 2 payments". */
+  subject?: string;
   /** Noun for the count suffix, e.g. "payment" → "3 payments". */
   noun?: string;
   /** Keys to look for the counted array in an object output. */
@@ -13,52 +15,61 @@ const TOOLS: Record<string, ToolMeta> = {
   getChat: {
     running: "Reading chat",
     done: "Read chat",
+    subject: "Chat",
     noun: "message",
     keys: ["messages"],
   },
   getCustomer: {
     running: "Looking up customer",
     done: "Looked up customer",
+    subject: "Customer",
   },
   getBilling: {
     running: "Checking billing",
     done: "Checked billing",
+    subject: "Billing",
     noun: "payment",
     keys: ["payments"],
   },
   getEntitlements: {
     running: "Checking access",
     done: "Checked access",
+    subject: "Access",
     noun: "entitlement",
     keys: ["entitlements"],
   },
   getSessionEvents: {
     running: "Reading session events",
     done: "Read session events",
+    subject: "Session events",
     noun: "event",
     keys: ["events"],
   },
   getErrorLogs: {
     running: "Reading error logs",
     done: "Read error logs",
+    subject: "Error logs",
     noun: "error",
     keys: ["errors", "logs"],
   },
   getEmailLog: {
     running: "Checking email log",
     done: "Checked email log",
+    subject: "Email log",
     noun: "email",
     keys: ["emails"],
   },
   searchHelp: {
     running: "Searching help center",
     done: "Searched help center",
+    subject: "Help center",
     noun: "article",
     keys: ["articles", "results"],
   },
   findSimilarCustomers: {
     running: "Looking for similar customers",
     done: "Found similar customers",
+    subject: "Similar customers",
     noun: "customer",
     keys: ["customers", "customerIds", "matches"],
   },
@@ -66,7 +77,7 @@ const TOOLS: Record<string, ToolMeta> = {
     running: "Writing verdict",
     done: "Submitted verdict",
   },
-  getCase: { running: "Reading case", done: "Read case" },
+  getCase: { running: "Reading case", done: "Read case", subject: "Case" },
   cancelSubscription: {
     running: "Proposing subscription cancel",
     done: "Proposed subscription cancel",

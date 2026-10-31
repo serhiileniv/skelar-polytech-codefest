@@ -5,22 +5,10 @@ import { useEffect, useState } from "react";
 import type { Verdict } from "@/api";
 import { cn } from "@/lib/utils";
 
-import {
-  awaitingAgent,
-  toBubbles,
-  verdictReasons,
-  type StepBubble,
-} from "./conversation-view";
-import {
-  HIGHLIGHT_CLASS,
-  useEvidenceFocus,
-  useEvidenceTarget,
-} from "./evidence-focus";
+import { shortGoal } from "./conversation-view";
+import { useEvidenceFocus } from "./evidence-focus";
 import { VerdictMark } from "./avatar";
 import { IdChip } from "./outcome-badge";
-import type { TraceState } from "./investigate-trace";
-import { IdChips, TraceHeader } from "./trace";
-import { SecondaryButton } from "./controls";
 import {
   DowngradedNotice,
   NextStep,
@@ -86,73 +74,18 @@ export function TypingDots({
   );
 }
 
-const NO_IDS: string[] = [];
-
-/** One agent step: first-person sentence + "Checked billing → 2 payments" with evidence chips. */
-function StepBubbleView({ bubble }: { bubble: StepBubble }) {
-  const { text, tool } = bubble;
-  const ids = tool?.ids ?? NO_IDS;
-  const { attrs, highlighted } = useEvidenceTarget(ids, { reference: true });
-  return (
-    <AgentBubble {...attrs} className={cn(highlighted && HIGHLIGHT_CLASS)}>
-      {text && <p className="whitespace-pre-line">{text}</p>}
-      {tool && (
-        <div
-          className={cn("text-[12px] leading-4 text-zinc-500", text && "mt-1")}
-        >
-          {tool.state === "running" ? (
-            <span className="inline-flex items-center gap-1.5 text-zinc-900">
-              {tool.label}
-              <TypingDots label={tool.label} />
-            </span>
-          ) : tool.state === "failed" ? (
-            <span className="text-[#b42318]">
-              {tool.label} failed
-              {tool.errorText ? ` · ${tool.errorText}` : ""}
-            </span>
-          ) : (
-            <span>
-              <span className="font-medium text-zinc-700">{tool.label}</span>
-              {tool.count && <> → {tool.count}</>}
-            </span>
-          )}
-          {ids.length > 0 && <IdChips ids={ids} />}
-        </div>
-      )}
-    </AgentBubble>
-  );
-}
-
-/** The agent's steps as bubbles under the run status ("Step n of 8" / "Done · n steps"). */
-export function ConversationSteps({
-  trace,
-  running,
+/** Final call: "My call: Tech team · 91% confident", one summary, evidence on demand, then the next step. */
+export function VerdictBubble({
+  verdict,
+  children,
 }: {
-  trace: TraceState;
-  running: boolean;
+  verdict: Verdict;
+  /** The next step, rendered as the card's last section. */
+  children?: React.ReactNode;
 }) {
-  const bubbles = toBubbles(trace.items);
-  return (
-    <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-      <TraceHeader trace={trace} running={running} />
-      <div className="space-y-2 p-3">
-        {bubbles.map((b) => (
-          <StepBubbleView key={b.key} bubble={b} />
-        ))}
-        {awaitingAgent(bubbles, running) && (
-          <AgentBubble>
-            <TypingDots />
-          </AgentBubble>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/** Final call: "My call: Tech team · 91% confident" + Because bullets, each tied to its records. */
-export function VerdictBubble({ verdict }: { verdict: Verdict }) {
-  const reasons = verdictReasons(verdict);
   const { focus } = useEvidenceFocus();
+  const goal = shortGoal(verdict);
+  const n = verdict.evidence.length;
   return (
     <article className="copilot-bubble-in overflow-hidden rounded-lg border border-zinc-200 bg-white">
       <VerdictHeader verdict={verdict} prefix="My call: " />
@@ -163,44 +96,47 @@ export function VerdictBubble({ verdict }: { verdict: Verdict }) {
             {verdict.outcome === "suspicious" && <SuspiciousBanner />}
           </div>
         )}
-        <SummaryText text={verdict.summary} />
-        <section>
-          <div className="mb-1.5 text-[12px] leading-4 font-medium text-zinc-500">
-            Because
-          </div>
-          <ul className="space-y-1.5">
-            {reasons.map((r) => (
-              <li
-                key={`${r.ids.join(" ")}-${r.text}`}
-                className="flex items-start gap-2 text-[13px] leading-5 text-zinc-700"
-              >
-                {r.ids.length > 0 ? (
-                  r.ids.map((id) => (
-                    <IdChip key={id} id={id} onClick={() => focus(id)} />
-                  ))
-                ) : (
-                  <span
-                    aria-hidden
-                    className="mt-2 size-1 shrink-0 rounded-full bg-zinc-400"
-                  />
-                )}
-                <span className="min-w-0 flex-1">{r.text}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-        <div className="space-y-1 text-[13px] leading-5 text-zinc-700">
-          <p>
-            <span className="font-medium text-zinc-900">Customer wants:</span>{" "}
-            {verdict.customerGoal}
-          </p>
-          {verdict.outcome === "tech_team" && verdict.techIssue && (
-            <p>
-              <span className="font-medium text-zinc-900">Root cause:</span>{" "}
-              {verdict.techIssue.title} — {verdict.techIssue.rootCause}
+        <div className="space-y-1.5">
+          <SummaryText text={verdict.summary} />
+          {goal && (
+            <p className="truncate text-[12px] leading-4 text-zinc-500">
+              Wants: {goal}
             </p>
           )}
+          {verdict.outcome === "tech_team" && verdict.techIssue && (
+            <p
+              title={verdict.techIssue.rootCause}
+              className="truncate text-[12px] leading-4 text-zinc-500"
+            >
+              Root cause: {verdict.techIssue.title}
+            </p>
+          )}
+          {n > 0 && (
+            <details className="group pt-0.5">
+              <summary className="w-fit cursor-pointer list-none text-[12px] leading-4 font-medium text-indigo-700 hover:text-indigo-800">
+                Evidence ({n})
+                <span className="ml-1 text-zinc-400 group-open:hidden">
+                  · Show
+                </span>
+                <span className="ml-1 hidden text-zinc-400 group-open:inline">
+                  · Hide
+                </span>
+              </summary>
+              <ul className="mt-2 space-y-1">
+                {verdict.evidence.map((e) => (
+                  <li
+                    key={`${e.id}-${e.note}`}
+                    className="flex items-start gap-2 text-[12px] leading-5 text-zinc-600"
+                  >
+                    <IdChip id={e.id} onClick={() => focus(e.id)} />
+                    <span className="min-w-0 flex-1">{e.note}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
+        {children}
       </div>
     </article>
   );
@@ -220,20 +156,9 @@ export function Proposal({ animate, ...props }: ProposalProps) {
     return () => clearTimeout(t);
   }, [animate]);
 
-  const { verdict, onPropose } = props;
   return (
     <div className={cn(entering && "copilot-proposal-in")}>
-      {verdict.outcome === "suspicious" ? (
-        verdict.replyDraft.trim() !== "" && (
-          <section className="space-y-2">
-            <SecondaryButton onClick={() => onPropose(verdict.replyDraft)}>
-              Use suggested reply
-            </SecondaryButton>
-          </section>
-        )
-      ) : (
-        <NextStep {...props} />
-      )}
+      <NextStep {...props} />
     </div>
   );
 }

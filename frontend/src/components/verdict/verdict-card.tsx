@@ -16,19 +16,21 @@ import {
 } from "@/api";
 import { cn } from "@/lib/utils";
 
-import { confidencePct } from "./conversation-view";
+import {
+  confidencePct,
+  nextStepActions,
+  type PrimaryAction,
+} from "./conversation-view";
 import { useEvidenceFocus } from "./evidence-focus";
 import { OUTCOME_META } from "./outcome";
 import { IdChip } from "./outcome-badge";
 import {
-  Field,
   GhostButton,
   PrimaryButton,
   RuleChip,
   SecondaryButton,
 } from "./controls";
-import { FixPanel } from "./fix-panel";
-import { fixAllowed } from "./fix-view";
+import { FixCapabilities, FixPanel } from "./fix-panel";
 import {
   actionToastMessage,
   instructionText,
@@ -43,73 +45,6 @@ export interface VerdictCardProps {
   /** Shows the "Suggested reply" card above the composer; nothing is inserted without a click there. */
   onPropose: (text: string) => void;
   onChanged: () => void;
-}
-
-export function VerdictCard(props: VerdictCardProps) {
-  const { verdict } = props;
-  const { focus } = useEvidenceFocus();
-  return (
-    <article className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-      <VerdictHeader verdict={verdict} />
-      <div className="divide-y divide-zinc-100 [&>*]:px-4 [&>*]:py-3">
-        {verdict.outcome === "suspicious" ? (
-          <div className="space-y-3">
-            <SuspiciousBanner />
-            {verdict.replyDraft.trim() !== "" && (
-              <SecondaryButton
-                onClick={() => props.onPropose(verdict.replyDraft)}
-              >
-                Use suggested reply
-              </SecondaryButton>
-            )}
-          </div>
-        ) : (
-          <NextStep {...props} />
-        )}
-        {verdict.downgraded && (
-          <div>
-            <DowngradedNotice verdict={verdict} />
-          </div>
-        )}
-
-        <Field label="Customer wants">
-          <p className="text-[13px] leading-5 font-medium text-zinc-900">
-            {verdict.customerGoal}
-          </p>
-        </Field>
-        <Field label="What happened">
-          <SummaryText text={verdict.summary} />
-        </Field>
-
-        {verdict.outcome === "tech_team" && verdict.techIssue && (
-          <Field label="Root cause">
-            <p className="text-[13px] leading-5 font-medium text-zinc-900">
-              {verdict.techIssue.title}
-            </p>
-            <p className="mt-0.5 text-[13px] leading-5 text-zinc-700">
-              {verdict.techIssue.rootCause}
-            </p>
-          </Field>
-        )}
-
-        {verdict.evidence.length > 0 && (
-          <Field label={`Evidence (${verdict.evidence.length})`}>
-            <ul className="space-y-1.5">
-              {verdict.evidence.map((e) => (
-                <li
-                  key={`${e.id}-${e.note}`}
-                  className="flex items-start gap-2 text-[13px] leading-5 text-zinc-700"
-                >
-                  <IdChip id={e.id} onClick={() => focus(e.id)} />
-                  <span>{e.note}</span>
-                </li>
-              ))}
-            </ul>
-          </Field>
-        )}
-      </div>
-    </article>
-  );
 }
 
 /** Outcome dot + label on the outcome tint, confidence on the right. */
@@ -140,8 +75,8 @@ export function VerdictHeader({
   );
 }
 
-/** Long summaries clamp to 4 lines; record ids inside become chips. */
-const SUMMARY_CLAMP_CHARS = 280;
+/** Summaries past this clamp to 2 lines; record ids inside become chips. */
+const SUMMARY_CLAMP_CHARS = 140;
 
 export function SummaryText({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
@@ -152,7 +87,7 @@ export function SummaryText({ text }: { text: string }) {
       <p
         className={cn(
           "text-[13px] leading-5 text-zinc-700",
-          long && !open && "line-clamp-4",
+          long && !open && "line-clamp-2",
         )}
       >
         {splitRecordIds(text).map((part, i) =>
@@ -237,7 +172,7 @@ const SUPPORT_ACTION_DONE: Record<SupportAction["type"], string> = {
   send_magic_link: "Login link sent",
 };
 
-/** Primary action + suggested reply + mark resolved; never rendered for `suspicious`. */
+/** ONE primary action per outcome, then the reply, Mark resolved and "Other actions". Fix-it replaces it all while active. */
 export function NextStep({
   caseId,
   caseStatus,
@@ -248,9 +183,12 @@ export function NextStep({
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<ActionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fixing, setFixing] = useState(false);
 
   const closed = caseStatus === "resolved";
   const executed = result?.status === "executed";
+  const actions = nextStepActions(verdict);
+  const suspicious = verdict.outcome === "suspicious";
 
   async function run(req: ActionRequest) {
     setPending(true);
@@ -271,61 +209,98 @@ export function NextStep({
     }
   }
 
-  // F1 holds: Fix-it is the primary path, the manual action becomes secondary.
-  const canFix = fixAllowed(verdict);
-  const ActionButton = canFix ? SecondaryButton : PrimaryButton;
+  const secondary = actions.reply && (
+    <GhostButton
+      className="text-indigo-700 hover:text-indigo-800"
+      onClick={() => onPropose(verdict.replyDraft)}
+    >
+      Use suggested reply
+    </GhostButton>
+  );
+  const hasOther = actions.other.length > 0 || actions.primary === "fix";
+  const markResolved = !suspicious && (
+    <GhostButton
+      className="-mr-2 ml-auto"
+      disabled={pending || closed}
+      onClick={() => void run({ kind: "mark_resolved" })}
+    >
+      {closed ? "Resolved" : "Mark resolved"}
+    </GhostButton>
+  );
 
-  // need_more_info: the primary button already proposes replyDraft.
-  const showReplyButton =
-    verdict.outcome !== "need_more_info" && verdict.replyDraft.trim() !== "";
-
-  // Direct children are staggered in by `.copilot-proposal-in` (label, fix, actions, detail…).
+  // Direct children are staggered in by `.copilot-proposal-in` (label, actions, detail…).
   return (
     <section className="space-y-2.5">
-      <div className="text-[12px] leading-4 font-medium text-zinc-500">
-        Next step
+      <div className="-my-1 flex h-7 items-center text-[12px] leading-4 font-medium text-zinc-500">
+        {fixing ? "Fix-it" : "Next step"}
+        {!fixing && markResolved}
       </div>
-      {canFix && (
-        <FixPanel caseId={caseId} closed={closed} onChanged={onChanged} />
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        {primary()}
-        {showReplyButton && (
-          <SecondaryButton onClick={() => onPropose(verdict.replyDraft)}>
-            Use suggested reply
-          </SecondaryButton>
-        )}
-        <GhostButton
-          className="ml-auto"
-          disabled={pending || closed}
-          onClick={() => void run({ kind: "mark_resolved" })}
+      {actions.primary === "fix" ? (
+        <FixPanel
+          caseId={caseId}
+          closed={closed}
+          onChanged={onChanged}
+          onActiveChange={setFixing}
         >
-          {closed ? "Resolved" : "Mark resolved"}
-        </GhostButton>
-      </div>
-      {detail()}
-      <PolicyResult result={executed ? null : result} error={error} />
+          {secondary}
+        </FixPanel>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          {actions.primary && primary(actions.primary)}
+          {secondary}
+        </div>
+      )}
+      {!fixing && detail(actions.primary)}
+      {!fixing && hasOther && (
+        <div className="flex items-start gap-2">
+          <details className="group min-w-0 flex-1 text-[12px] leading-4">
+            <summary className="flex h-7 w-fit cursor-pointer list-none items-center font-medium text-zinc-500 hover:text-zinc-900">
+              Other actions
+              <span className="ml-1 text-zinc-400 group-open:hidden">
+                · Show
+              </span>
+              <span className="ml-1 hidden text-zinc-400 group-open:inline">
+                · Hide
+              </span>
+            </summary>
+            <div className="mt-1.5 space-y-2.5 border-l-2 border-zinc-200 py-1 pl-3">
+              {actions.other.map((a) => (
+                <div key={a} className="space-y-1.5">
+                  {primary(a)}
+                  {detail(a)}
+                </div>
+              ))}
+              {actions.primary === "fix" && <FixCapabilities />}
+            </div>
+          </details>
+        </div>
+      )}
+      {!fixing && (
+        <PolicyResult result={executed ? null : result} error={error} />
+      )}
       {verdict.outcome === "tech_team" && executed && result.techIssue && (
         <ImpactCallout count={result.techIssue.affectedCustomerIds.length} />
       )}
     </section>
   );
 
-  function primary() {
-    switch (verdict.outcome) {
-      case "user_can_fix":
+  function primary(kind: PrimaryAction) {
+    // A manual action behind "Other actions" is secondary; the visible one is primary.
+    const Button = actions.primary === kind ? PrimaryButton : SecondaryButton;
+    switch (kind) {
+      case "insert_instruction":
         return (
-          <ActionButton onClick={() => onPropose(instructionText(verdict))}>
+          <Button onClick={() => onPropose(instructionText(verdict))}>
             Insert instruction
-          </ActionButton>
+          </Button>
         );
-      case "need_more_info":
+      case "ask_clarifying":
         return (
           <PrimaryButton onClick={() => onPropose(verdict.replyDraft)}>
             Ask clarifying question
           </PrimaryButton>
         );
-      case "support_can_fix": {
+      case "support_action": {
         const action = verdict.supportAction;
         if (!action) return null;
         if (executed)
@@ -335,15 +310,15 @@ export function NextStep({
         // Closed with the result lost on remount: the ghost "Resolved" already says it.
         if (closed) return null;
         return (
-          <ActionButton
-            disabled={pending || closed}
+          <Button
+            disabled={pending}
             onClick={() => void run({ kind: "support_action", action })}
           >
             {SUPPORT_ACTION_LABEL[action.type]}
-          </ActionButton>
+          </Button>
         );
       }
-      case "tech_team":
+      case "send_to_tech":
         if (executed)
           return <DoneLine text="Sent to tech board" result={result} />;
         if (caseStatus === "with_tech")
@@ -351,33 +326,28 @@ export function NextStep({
         if (closed) return null;
         return (
           <PrimaryButton
-            disabled={pending || closed}
+            disabled={pending}
             onClick={() => void run({ kind: "send_to_tech" })}
           >
             Send to tech board
           </PrimaryButton>
         );
-      case "suspicious":
+      case "fix":
         return null;
     }
   }
 
-  function detail() {
-    switch (verdict.outcome) {
-      case "need_more_info":
+  function detail(kind: PrimaryAction | null) {
+    switch (kind) {
+      case "ask_clarifying":
         return verdict.clarifyingQuestion ? (
           <p className="text-[13px] leading-5 text-zinc-700">
             “{verdict.clarifyingQuestion}”
           </p>
         ) : null;
-      case "support_can_fix": {
+      case "support_action": {
         const action = verdict.supportAction;
-        if (!action)
-          return (
-            <p className="text-[12px] leading-4 text-zinc-500">
-              No action proposed.
-            </p>
-          );
+        if (!action) return null;
         return (
           <p className="text-[12px] leading-5 text-zinc-500">
             <IdChip id={actionTarget(action)} /> · {action.reason}

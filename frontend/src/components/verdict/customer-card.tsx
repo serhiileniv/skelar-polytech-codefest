@@ -17,7 +17,7 @@ export function CustomerCard({ detail }: CustomerCardProps) {
     subscriptions.find((s) => s.status === "active") ?? subscriptions[0];
 
   return (
-    <div className="border-t border-zinc-200 bg-white p-4">
+    <div className="rounded-lg border border-zinc-200 bg-white p-4">
       <div className="space-y-4">
         <div className="flex items-start gap-3">
           <Avatar id={customer.id} name={customer.name} size={40} />

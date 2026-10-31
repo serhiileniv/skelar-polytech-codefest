@@ -15,7 +15,7 @@ type AvatarSize = keyof typeof SIZE_CLASS;
 const FRAME =
   "flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-zinc-900/[.06]";
 
-/** Customer avatar: bundled illustration for demo customers, initials otherwise. */
+/** Customer avatar: bundled portrait for demo customers, initials otherwise. */
 export function Avatar({
   id,
   name,

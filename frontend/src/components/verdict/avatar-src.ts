@@ -1,4 +1,4 @@
-/** Demo customers with a bundled DiceBear "Notionists" avatar (CC0) in public/avatars. */
+/** Demo customers with a bundled Unsplash portrait in public/avatars (sources: CREDITS.md). */
 const AVATAR_IDS_BY_NAME: Record<string, string> = {
   "Emma Carter": "cust_001",
   "Noah Kim": "cust_002",
@@ -11,7 +11,7 @@ const AVATAR_IDS_BY_NAME: Record<string, string> = {
 
 const AVATAR_IDS = new Set(Object.values(AVATAR_IDS_BY_NAME));
 
-export const SUPPORT_AVATAR_SRC = "/avatars/support.svg";
+export const SUPPORT_AVATAR_SRC = "/avatars/support.jpg";
 
 /** The case list only carries a name, so the id wins when given and the name is the fallback. */
 export function avatarSrc(person: {
@@ -22,7 +22,7 @@ export function avatarSrc(person: {
     person.id !== undefined && AVATAR_IDS.has(person.id)
       ? person.id
       : AVATAR_IDS_BY_NAME[person.name.trim()];
-  return id ? `/avatars/${id}.svg` : null;
+  return id ? `/avatars/${id}.jpg` : null;
 }
 
 export function initials(name: string): string {

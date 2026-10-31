@@ -1,138 +1,28 @@
 "use client";
 
-import { LoaderCircle } from "lucide-react";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
+import {
+  awaitingAgent,
+  currentThought,
+  sourcesChecked,
+  toBubbles,
+  type StepBubble,
+} from "./conversation-view";
 import {
   HIGHLIGHT_CLASS,
   useEvidenceFocus,
   useEvidenceTarget,
 } from "./evidence-focus";
-import {
-  groupSteps,
-  type TraceNode,
-  type TraceState,
-} from "./investigate-trace";
+import type { TraceState } from "./investigate-trace";
 import { IdChip } from "./outcome-badge";
-import { FINAL_TOOLS, countOf, metaOf, plural } from "./tool-meta";
 
-/** Chips shown per tool row before collapsing the rest into "+N". */
+/** Chips shown before collapsing the rest into "+N". */
 const MAX_ID_CHIPS = 4;
 
 const NO_IDS: string[] = [];
-
-interface TimelineNodeProps {
-  node: TraceNode;
-  /** 1-based position in the timeline, shown in the node. */
-  step: number;
-  last: boolean;
-}
-
-/** One agent step: muted thought, then the tool it called with the record ids it returned. */
-export function TimelineNode({ node, step, last }: TimelineNodeProps) {
-  const { tool, thought } = node;
-  const ids =
-    tool && !FINAL_TOOLS.has(tool.name) ? (tool.ids ?? NO_IDS) : NO_IDS;
-  const { attrs, highlighted } = useEvidenceTarget(ids, { reference: true });
-  const meta = tool ? metaOf(tool.name) : null;
-  const done = tool?.state === "output-available";
-  const failed = tool?.state === "output-error";
-  const running = !!tool && !done && !failed;
-  const count = done && meta?.noun ? countOf(tool.output, meta.keys) : null;
-
-  return (
-    <li className="animate-in fade-in-0 slide-in-from-bottom-1 relative flex gap-3 duration-200 ease-[cubic-bezier(.25,.46,.45,.94)] motion-reduce:animate-none">
-      {!last && (
-        <span
-          aria-hidden
-          className="absolute top-7 bottom-0 left-[11px] w-px bg-zinc-200"
-        />
-      )}
-      <StepNode
-        step={step}
-        tone={
-          failed ? "failed" : running ? "running" : tool ? "done" : "thinking"
-        }
-      />
-      <div
-        {...attrs}
-        className={cn(
-          "-mx-1 min-w-0 flex-1 px-1 pb-3",
-          highlighted && HIGHLIGHT_CLASS,
-        )}
-      >
-        {thought && (
-          <p className="pt-0.5 text-[13px] leading-5 whitespace-pre-line text-zinc-600">
-            {thought}
-          </p>
-        )}
-        {tool && meta && (
-          <div
-            className={cn(
-              "flex items-center gap-1.5 pt-1 text-[13px]",
-              thought && "pt-1.5",
-            )}
-          >
-            <span
-              className={cn(
-                "truncate font-medium",
-                failed ? "text-[#b42318]" : "text-zinc-900",
-              )}
-            >
-              {failed
-                ? `${meta.done} failed`
-                : done
-                  ? meta.done
-                  : `${meta.running}…`}
-            </span>
-            {count !== null && meta.noun && (
-              <span className="shrink-0 text-[12px] text-zinc-500 tabular-nums">
-                · {plural(count, meta.noun)}
-              </span>
-            )}
-          </div>
-        )}
-        {failed && tool?.errorText && (
-          <p className="text-[12px] leading-4 text-[#b42318]">
-            {tool.errorText}
-          </p>
-        )}
-        {done && ids.length > 0 && <IdChips ids={ids} />}
-      </div>
-    </li>
-  );
-}
-
-type NodeTone = "running" | "done" | "failed" | "thinking";
-
-const NODE_TONE: Record<NodeTone, string> = {
-  running: "border-indigo-200 bg-white text-indigo-600",
-  done: "border-zinc-200 bg-white text-zinc-500",
-  failed: "border-[#b42318] bg-white text-[#b42318]",
-  thinking: "border-zinc-200 bg-zinc-50 text-zinc-400",
-};
-
-/** Numbered timeline node; spinner while the tool runs. */
-function StepNode({ step, tone }: { step: number; tone: NodeTone }) {
-  return (
-    <span
-      className={cn(
-        "relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-medium tabular-nums",
-        NODE_TONE[tone],
-      )}
-    >
-      {tone === "running" ? (
-        <LoaderCircle
-          strokeWidth={1.5}
-          className="size-3.5 animate-spin motion-reduce:animate-none"
-        />
-      ) : (
-        step
-      )}
-    </span>
-  );
-}
 
 /** Clickable record ids; a click highlights the record (evidence focus). */
 export function IdChips({ ids }: { ids: readonly string[] }) {
@@ -156,35 +46,81 @@ export function IdChips({ ids }: { ids: readonly string[] }) {
   );
 }
 
-interface TraceCardProps {
+interface RunStepsProps {
   trace: TraceState;
   running: boolean;
-  /** Prefix for the header, e.g. "Fix-it". */
+  /** Prefix for the status, e.g. "Fix-it". */
   label?: string;
+  /** Adds "Checked n sources" to the finished line (Investigate). */
+  countSources?: boolean;
+  /** Right side of the finished line, e.g. Re-run. */
+  trailing?: React.ReactNode;
 }
 
-/** Status line ("Step n of 8" / "Done · n steps"), live/replay badge and progress bar of a run. */
-export function TraceHeader({ trace, running, label }: TraceCardProps) {
-  const error = trace.error;
-  const status = running
-    ? `${label ? `${label} · step` : "Step"} ${Math.max(trace.steps, 1)} of ${trace.maxSteps}`
-    : `${label ? `${label} · ` : ""}${error ? "Stopped" : "Done"} · ${trace.steps} ${trace.steps === 1 ? "step" : "steps"}`;
+/** "Step n of 8" / "Done · n steps". */
+function runStatus(trace: TraceState, running: boolean, label?: string) {
+  const prefix = label ? `${label} · ` : "";
+  if (running)
+    return `${label ? `${label} · step` : "Step"} ${Math.max(trace.steps, 1)} of ${trace.maxSteps}`;
+  const steps = `${trace.steps} ${trace.steps === 1 ? "step" : "steps"}`;
+  return `${prefix}${trace.error ? "Stopped" : "Done"} · ${steps}`;
+}
+
+/** Live: one line per step, the agent's thought under the current one. Done: one collapsible line. */
+export function RunSteps({
+  trace,
+  running,
+  label,
+  countSources,
+  trailing,
+}: RunStepsProps) {
+  const [open, setOpen] = useState(false);
+  const bubbles = toBubbles(trace.items);
+  const expanded = running || open;
+  const sources = sourcesChecked(trace.items);
   return (
-    <>
-      <header className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2 text-[12px] leading-4">
+    <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+      <header className="flex items-center gap-2 px-3 py-2 text-[12px] leading-4">
         <span
           aria-hidden
           className={cn(
-            "size-1.5 rounded-full",
-            running ? "bg-indigo-500" : error ? "bg-[#b42318]" : "bg-[#2f7d55]",
+            "size-1.5 shrink-0 rounded-full",
+            running
+              ? "bg-indigo-500"
+              : trace.error
+                ? "bg-[#b42318]"
+                : "bg-[#2f7d55]",
           )}
         />
-        <span className="font-medium text-zinc-900 tabular-nums">{status}</span>
+        <span className="truncate">
+          <span className="font-medium text-zinc-900 tabular-nums">
+            {runStatus(trace, running, label)}
+          </span>
+          {!running && countSources && sources > 0 && (
+            <span className="text-zinc-500 tabular-nums">
+              {" "}
+              · Checked {sources} {sources === 1 ? "source" : "sources"}
+            </span>
+          )}
+        </span>
         {trace.started && (
-          <span className="ml-auto text-zinc-500">
+          <span className="shrink-0 text-zinc-400">
             {trace.replay ? "replay" : "live"}
           </span>
         )}
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          {!running && bubbles.length > 0 && (
+            <button
+              type="button"
+              aria-expanded={open}
+              onClick={() => setOpen(!open)}
+              className="rounded px-1 font-medium text-indigo-700 hover:text-indigo-800 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-none"
+            >
+              {open ? "Hide steps" : "Show steps"}
+            </button>
+          )}
+          {!running && trailing}
+        </span>
       </header>
       {running && (
         <div className="h-0.5 bg-zinc-100">
@@ -196,29 +132,113 @@ export function TraceHeader({ trace, running, label }: TraceCardProps) {
           />
         </div>
       )}
-    </>
+      {expanded && (
+        <StepLines bubbles={bubbles} running={running} trace={trace} />
+      )}
+    </section>
   );
 }
 
-/** Live agent timeline: status header, step progress bar, one node per step. */
-export function TraceCard({ trace, running, label }: TraceCardProps) {
-  const nodes = groupSteps(trace.items);
+function StepLines({
+  bubbles,
+  running,
+  trace,
+}: {
+  bubbles: StepBubble[];
+  running: boolean;
+  trace: TraceState;
+}) {
+  const thought = currentThought(bubbles, running);
+  const lines = bubbles.filter((b) => b.tool);
   return (
-    <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-      <TraceHeader trace={trace} running={running} label={label} />
-      <ol className="px-3 pt-3 pb-1">
-        {nodes.map((node, i) => (
-          <TimelineNode
-            key={node.key}
-            node={node}
-            step={i + 1}
-            last={i === nodes.length - 1}
-          />
-        ))}
-        {running && nodes.length === 0 && (
-          <li className="pb-2 text-[12px] text-zinc-500">Starting agent…</li>
+    <ol className="space-y-0.5 border-t border-zinc-100 px-3 py-2">
+      {lines.map((b) => (
+        <StepLine
+          key={b.key}
+          bubble={b}
+          thought={b.key === thought.key ? thought.text : null}
+        />
+      ))}
+      {awaitingAgent(bubbles, running) && (
+        <li className="animate-in fade-in-0 duration-200 motion-reduce:animate-none">
+          <div className="flex items-center gap-2 text-[13px] leading-5 text-zinc-500">
+            <LineDot state="running" />
+            {trace.items.length === 0 ? "Starting…" : "Thinking…"}
+          </div>
+          {thought.key === null && thought.text && (
+            <Thought text={thought.text} />
+          )}
+        </li>
+      )}
+    </ol>
+  );
+}
+
+function StepLine({
+  bubble,
+  thought,
+}: {
+  bubble: StepBubble;
+  thought: string | null;
+}) {
+  const tool = bubble.tool;
+  const ids = tool?.ids ?? NO_IDS;
+  const { attrs, highlighted } = useEvidenceTarget(ids, { reference: true });
+  if (!tool) return null;
+  return (
+    <li
+      {...attrs}
+      title={ids.length > 0 ? ids.join(", ") : undefined}
+      className={cn(
+        "animate-in fade-in-0 -mx-1 px-1 duration-200 motion-reduce:animate-none",
+        highlighted && HIGHLIGHT_CLASS,
+      )}
+    >
+      <div className="flex items-center gap-2 text-[13px] leading-5">
+        <LineDot state={tool.state} />
+        {tool.state === "running" ? (
+          <span className="truncate text-zinc-900">{tool.label}…</span>
+        ) : tool.state === "failed" ? (
+          <span className="truncate text-[#b42318]">
+            {tool.label} failed
+            {tool.errorText ? ` · ${tool.errorText}` : ""}
+          </span>
+        ) : (
+          <span className="truncate text-zinc-700">
+            {tool.label}
+            {tool.count && (
+              <span className="text-zinc-500 tabular-nums">
+                {" "}
+                · {tool.count}
+              </span>
+            )}
+          </span>
         )}
-      </ol>
-    </section>
+      </div>
+      {thought && <Thought text={thought} />}
+    </li>
+  );
+}
+
+function Thought({ text }: { text: string }) {
+  return (
+    <p className="line-clamp-3 pb-1 pl-3.5 text-[12px] leading-4 whitespace-pre-line text-zinc-500">
+      {text}
+    </p>
+  );
+}
+
+const LINE_DOT = {
+  running: "bg-indigo-500 animate-pulse motion-reduce:animate-none",
+  done: "bg-zinc-300",
+  failed: "bg-[#b42318]",
+} as const;
+
+function LineDot({ state }: { state: keyof typeof LINE_DOT }) {
+  return (
+    <span
+      aria-hidden
+      className={cn("size-1.5 shrink-0 rounded-full", LINE_DOT[state])}
+    />
   );
 }

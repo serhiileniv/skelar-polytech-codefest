@@ -7,11 +7,11 @@ import { api, errorMessage, type CaseStatus, type Verdict } from "@/api";
 import { cn } from "@/lib/utils";
 
 import { AskVerdict } from "./ask-verdict";
-import { VerdictMark } from "./avatar";
-import { ConversationSteps, Proposal, VerdictBubble } from "./conversation";
+import { Proposal, VerdictBubble } from "./conversation";
 import { GhostButton, SecondaryButton } from "./controls";
 import { INITIAL_TRACE, traceReducer } from "./investigate-trace";
 import { serverMayStillRun } from "./run-recovery";
+import { RunSteps } from "./trace";
 import { instructionText } from "./verdict-card";
 
 /** Give up waiting for a lost server run after this long. */
@@ -127,26 +127,21 @@ export function InvestigatePanel({
   const showSteps = started && !(trace.error && trace.items.length === 0);
   const idle = !verdict && !started && !waiting && !error;
 
-  return (
-    <div className="flex flex-col">
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-200 px-4">
-        <h2 className="flex items-center gap-2 text-[13px] leading-[18px] font-semibold text-zinc-900">
-          <VerdictMark />
-          Copilot
-        </h2>
-        {verdict && !running && !waiting && !confirmRerun && (
-          <GhostButton onClick={() => setConfirmRerun(true)}>
-            <RotateCcw
-              aria-hidden
-              strokeWidth={1.5}
-              className="size-3.5 text-zinc-500"
-            />
-            Re-run
-          </GhostButton>
-        )}
-      </header>
+  const rerun =
+    verdict && !running && !waiting && !confirmRerun ? (
+      <GhostButton className="h-6" onClick={() => setConfirmRerun(true)}>
+        <RotateCcw
+          aria-hidden
+          strokeWidth={1.5}
+          className="size-3.5 text-zinc-500"
+        />
+        Re-run
+      </GhostButton>
+    ) : null;
 
-      <div className="space-y-4 p-4">
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {confirmRerun && (
           <div className="flex items-center gap-2 text-[13px] text-zinc-700">
             <span className="min-w-0 flex-1">
@@ -164,8 +159,7 @@ export function InvestigatePanel({
         {idle && (
           <div className="space-y-2.5 rounded-lg border border-dashed border-indigo-200 bg-white/70 p-4">
             <p className="text-[13px] leading-5 text-zinc-700">
-              Ready when you are. I&apos;ll read the account and tell you who
-              can fix this.
+              I&apos;ll read the account and tell you who can fix this.
             </p>
             <SecondaryButton onClick={() => void investigate()}>
               Investigate
@@ -176,7 +170,30 @@ export function InvestigatePanel({
           </div>
         )}
 
-        {showSteps && <ConversationSteps trace={trace} running={running} />}
+        {showSteps ? (
+          <RunSteps
+            trace={trace}
+            running={running}
+            countSources
+            trailing={rerun}
+          />
+        ) : (
+          verdict &&
+          !waiting && (
+            <div className="flex items-center gap-2 px-1 text-[12px] leading-4">
+              <span
+                aria-hidden
+                className="size-1.5 shrink-0 rounded-full bg-[#2f7d55]"
+              />
+              <span className="font-medium text-zinc-900 tabular-nums">
+                Done · {verdict.stepsUsed}{" "}
+                {verdict.stepsUsed === 1 ? "step" : "steps"}
+              </span>
+              <span className="text-zinc-400">earlier run</span>
+              <span className="ml-auto">{rerun}</span>
+            </div>
+          )
+        )}
 
         {waiting && (
           <p role="status" className="text-[13px] leading-5 text-zinc-500">
@@ -200,19 +217,21 @@ export function InvestigatePanel({
         )}
 
         {verdict && (
-          <div className={cn("space-y-4", verdict === fresh && ENTER)}>
-            <div ref={verdictRef} className="scroll-mt-3">
-              <VerdictBubble verdict={verdict} />
-            </div>
-            <Proposal
-              key={verdict.createdAt}
-              animate={verdict === fresh}
-              caseId={caseId}
-              caseStatus={caseStatus}
-              verdict={verdict}
-              onPropose={onPropose}
-              onChanged={onChanged}
-            />
+          <div
+            ref={verdictRef}
+            className={cn("scroll-mt-3", verdict === fresh && ENTER)}
+          >
+            <VerdictBubble verdict={verdict}>
+              <Proposal
+                key={verdict.createdAt}
+                animate={verdict === fresh}
+                caseId={caseId}
+                caseStatus={caseStatus}
+                verdict={verdict}
+                onPropose={onPropose}
+                onChanged={onChanged}
+              />
+            </VerdictBubble>
           </div>
         )}
       </div>

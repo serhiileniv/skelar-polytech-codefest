@@ -19,10 +19,16 @@ export const HIGHLIGHT_CLASS =
 
 interface EvidenceFocus {
   focusedId: string | null;
+  /** Bumps on every focus, so a repeat click on the same id still counts. */
+  seq: number;
   focus: (id: string) => void;
 }
 
-const NO_FOCUS: EvidenceFocus = { focusedId: null, focus: () => undefined };
+const NO_FOCUS: EvidenceFocus = {
+  focusedId: null,
+  seq: 0,
+  focus: () => undefined,
+};
 
 const EvidenceFocusContext = createContext<EvidenceFocus>(NO_FOCUS);
 
@@ -36,18 +42,23 @@ export function EvidenceFocusProvider({
   children: React.ReactNode;
 }) {
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [seq, setSeq] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const focus = useCallback((id: string) => {
     setFocusedId(id);
+    setSeq((n) => n + 1);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setFocusedId(null), HIGHLIGHT_MS);
-    const sel = `[data-evidence~="${CSS.escape(id)}"]`;
-    // Prefer the record itself over a trace row that merely mentions it.
-    const target =
-      document.querySelector(`${sel}:not([data-evidence-ref])`) ??
-      document.querySelector(sel);
-    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Next frame: the Copilot pane may first switch to the Customer tab that holds the record.
+    requestAnimationFrame(() => {
+      const sel = `[data-evidence~="${CSS.escape(id)}"]`;
+      // Prefer the record itself over a trace row that merely mentions it.
+      const target =
+        document.querySelector(`${sel}:not([data-evidence-ref])`) ??
+        document.querySelector(sel);
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
   }, []);
 
   useEffect(
@@ -57,7 +68,10 @@ export function EvidenceFocusProvider({
     [],
   );
 
-  const value = useMemo(() => ({ focusedId, focus }), [focusedId, focus]);
+  const value = useMemo(
+    () => ({ focusedId, seq, focus }),
+    [focusedId, seq, focus],
+  );
   return (
     <EvidenceFocusContext.Provider value={value}>
       {children}

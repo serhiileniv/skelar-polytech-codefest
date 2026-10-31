@@ -5,7 +5,7 @@ Status: draft 2026-10-31 · Kickoff rules: branch `docs/claude-code-prompt` (`cl
 How to use: do steps in order, tick the box, merge to `main` at the end of every step. `main` must always run the demo.
 Owner: **A** = core (entity, usecase, LLM adapter, policies) · **B** = edges (migrations, repos, controllers, frontend, docker).
 
-## Blockers — decide before Step 1
+## Blockers — ✅ all proposals accepted 2026-10-31
 
 | # | Conflict | Sources | Proposal |
 |---|---|---|---|
@@ -18,7 +18,7 @@ Owner: **A** = core (entity, usecase, LLM adapter, policies) · **B** = edges (m
 
 ## Phase 0 — Skeleton (A + B together, ~45 min)
 
-- [ ] **Step 1 · Rules (A).** Update `CLAUDE.md` + `docs/decisions.md` to Go/Postgres/pgx/`net/http`/slog/`anthropic-sdk-go`/`go test`; record D1–D6. Merge `docs/claude-code-prompt` into `main`.
+- [x] **Step 1 · Rules (A).** Update `CLAUDE.md` + `docs/decisions.md` to Go/Postgres/pgx/`net/http`/slog/`anthropic-sdk-go`/`go test`; record D1–D6. Merge `docs/claude-code-prompt` into `main`.
   DoD: no doc still says Next API routes / Vitest / zod are the backend rules.
 - [ ] **Step 2 · Contract (A + B).** Commit together:
   - `backend/internal/entity/*.go` — types only: Customer, Subscription, Payment, Entitlement, Event, ErrorLog, Email, HelpArticle, Case, Message, Verdict, Evidence, SupportAction, TechIssue, AuditEntry, Outcome, Signature.

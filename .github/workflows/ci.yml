@@ -27,5 +27,6 @@ jobs:
         with: { node-version: 24, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - run: pnpm exec next typegen # LayoutProps etc. are generated, not checked in
       - run: pnpm typecheck
       - run: pnpm test

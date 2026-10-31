@@ -20,7 +20,7 @@ Evaluator agent, earned autonomy, auto PR, real integrations, auth.
 | Case | Expected outcome |
 |---|---|
 | Charged after deleting the app | `user_can_fix` |
-| Reset email never arrives (typo in email) | `user_can_fix` |
+| Reset email "never arrives" (delivered, likely spam) | `user_can_fix` |
 | Paid, Premium locked (entitlement grant failed) | `support_can_fix` → restore access |
 | Charged after cancelling on web (iOS renewal), 37 others | `tech_team` → one board card, 38 customers |
 | "Nothing works" | `need_more_info` |

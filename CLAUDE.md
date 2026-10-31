@@ -1,6 +1,6 @@
-@AGENTS.md
+@frontend/AGENTS.md
 
-# Scalar Polytech Codefest — AI Customer Support Automation
+# Skelar Polytech Codefest — AI Customer Support Automation
 
 Source of truth: `docs/brief/brief.md` (host brief). If code and brief disagree, the brief wins.
 

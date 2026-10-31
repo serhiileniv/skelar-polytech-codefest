@@ -14,3 +14,4 @@ One line each: date — decision — why.
 - 2026-10-31 — D2–D6 accepted as proposed in `docs/execution-plan.md` (3 verdicts + 2 guard states, metrics for capability 4, 7 seeded cases, `feat/verdict-backbone` = port reference, SSE from Go).
 - 2026-10-31 — Split into BE (Go, friend) and FE (Next.js, Serhii) tracks; `docs/api.md` is the only interface; FE builds on a mock client — no track waits for the other.
 - 2026-10-31 — UI redesign per `docs/specs/verdict-ui-redesign.md`: Intercom/Zendesk-style console, copilot sidebar first, indigo, English, full trace kept.
+- 2026-10-31 — Seed is Go code (`internal/seed`) loaded by `make seed` via the `ResetDemo` usecase, not a SQL migration — `DELETE /api/state` reuses it; Postgres on host port 5433 to avoid clashing with a local 5432.

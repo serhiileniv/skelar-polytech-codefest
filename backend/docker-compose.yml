@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: verdict-postgres
+    environment:
+      POSTGRES_USER: verdict
+      POSTGRES_PASSWORD: verdict
+      POSTGRES_DB: verdict
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - verdict-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verdict -d verdict"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  verdict-pg:

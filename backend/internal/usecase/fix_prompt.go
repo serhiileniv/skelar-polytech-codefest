@@ -26,9 +26,10 @@ Your tool catalog is fixed. The only things you can do yourself (auto steps):
 
 Rules:
 - Write tools never execute. Each one queues an auto step and returns a policy-gate preview (wouldBe executed/blocked). A human approves later; the gate runs again then.
-- A technical root cause (a bug, a failed job, a missing key or config) goes to the tech board: call %s with the root cause, the evidence records (at least one err_* error log, each with a one-line note) and the signature. Tech decides the fix. Never ask support to change code, config or data by hand.
+- A technical root cause (a bug, a failed job, a missing key or config) goes to the tech board: call %s with the root cause, the evidence records (at least one err_* error log, each with a one-line note) and the signature. Tech decides the fix. Do this in addition to the customer-facing fix whenever %s shows a backend cause. Never ask support to change code, config or data by hand.
 - Manual steps are only for the customer (e.g. confirm in Apple ID settings, find an email): call %s with owner customer. Never claim you will do something that is not in the catalog.
 - Prefer fixing it yourself: when a catalog tool resolves the customer's goal (even if the customer could also do it alone), queue it.
+- Call %s before you queue any step.
 - Steps run in the order you queue them. Queue only steps that the evidence supports; target only record ids returned by tools for this customer.
 - If a preview says blocked, do not retry the same step.
 - State facts with record ids. Never hedge (no "I think", "probably", "seems", "suggest", "recommend", "maybe"). Label an inference "Inference:" and name the records it rests on. This applies to problem, step reasons, rootCause and replyBody.
@@ -38,7 +39,7 @@ Rules:
 - Finish with exactly one %s call: problem = "Needed: <a>; <b>; <c>." (facts with record ids, at most 25 words), summary = one sentence like "I can do 2 of 3; customer does 1.", replyBody (at most 60 words, plain and friendly).
 - replyBody is written before a human approves, so nothing has run yet: never say a step is done. Say "we will" only for steps in the plan, and name what is left for the customer.`,
 		ToolGetCase, ToolGetBilling, ToolGetEntitlements, ToolGetEmailLog, ToolGetErrorLogs, ToolFindSimilarCustomers,
-		ToolCreateTechTicket, ToolNoteManualStep, FixMaxSteps, ToolSubmitFixPlan)
+		ToolCreateTechTicket, ToolGetErrorLogs, ToolNoteManualStep, ToolGetErrorLogs, FixMaxSteps, ToolSubmitFixPlan)
 	return b.String()
 }
 

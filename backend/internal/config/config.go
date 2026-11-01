@@ -14,8 +14,9 @@ type Config struct {
 	DatabaseURL     string
 	HTTPAddr        string
 	FrontendOrigins []string // CORS allow-list, from comma-separated FRONTEND_ORIGIN
-	AnthropicAPIKey string
-	AnthropicModel  string
+	GroqAPIKey      string
+	GroqModel       string
+	GroqBaseURL     string
 	Replay          bool          // VERDICT_REPLAY=1 forces recordings even with a key
 	Record          bool          // VERDICT_RECORD=1 saves successful live runs to ReplayDir
 	ReplayDir       string        // VERDICT_REPLAY_DIR, default "replay"
@@ -28,8 +29,9 @@ func Load() (Config, error) {
 		DatabaseURL:     os.Getenv("DATABASE_URL"),
 		HTTPAddr:        env("HTTP_ADDR", ":8080"),
 		FrontendOrigins: list(env("FRONTEND_ORIGIN", "http://localhost:3000,http://127.0.0.1:3000")),
-		AnthropicAPIKey: os.Getenv("ANTHROPIC_API_KEY"),
-		AnthropicModel:  env("ANTHROPIC_MODEL", "claude-opus-5-5"),
+		GroqAPIKey:      strings.TrimSpace(os.Getenv("GROQ_API_KEY")),
+		GroqModel:       env("GROQ_MODEL", "openai/gpt-oss-120b"),
+		GroqBaseURL:     env("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
 		Replay:          os.Getenv("VERDICT_REPLAY") == "1",
 		Record:          os.Getenv("VERDICT_RECORD") == "1",
 		ReplayDir:       env("VERDICT_REPLAY_DIR", "replay"),

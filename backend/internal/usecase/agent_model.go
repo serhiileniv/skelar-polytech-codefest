@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 )
 
-// The agent model port. The Anthropic adapter and the replay adapter implement it (internal/adapter/llm).
+// The agent model port. The Groq adapter and the replay adapter implement it (internal/adapter/llm).
 
 // ToolSpec describes one tool to the model.
 type ToolSpec struct {
@@ -41,7 +41,7 @@ type ModelInfo struct {
 	Replay bool
 }
 
-// AgentSession is one conversation. It owns the provider's native history (e.g. thinking blocks).
+// AgentSession is one conversation. It owns the provider's native history (message history).
 type AgentSession interface {
 	// Next sends the previous turn's tool results (none on the first call) and returns the next turn.
 	// finalStep restricts the model to submitVerdict.

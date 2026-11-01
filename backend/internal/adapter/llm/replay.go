@@ -28,6 +28,7 @@ type Recording struct {
 type Config struct {
 	APIKey      string
 	Model       string
+	BaseURL     string // empty = DefaultGroqBaseURL
 	ReplayDir   string
 	ForceReplay bool          // VERDICT_REPLAY=1
 	Record      bool          // VERDICT_RECORD=1: save live runs as recordings
@@ -37,13 +38,13 @@ type Config struct {
 // Router implements usecase.AgentModel: replay when forced or when there is no key, otherwise live.
 type Router struct {
 	cfg  Config
-	live *liveModel
+	live *groqClient
 }
 
 func NewRouter(cfg Config) *Router {
 	r := &Router{cfg: cfg}
 	if cfg.APIKey != "" {
-		r.live = newLiveModel(cfg.APIKey, cfg.Model)
+		r.live = newGroqClient(cfg.APIKey, cfg.Model, cfg.BaseURL)
 	}
 	return r
 }

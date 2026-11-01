@@ -61,7 +61,7 @@ func AgentTools() []ToolSpec {
 		{Name: ToolSubmitVerdict, Description: "Submit the final verdict. Call exactly once, last. Evidence ids must come from tool results.",
 			Properties: map[string]any{
 				"outcome":      map[string]any{"type": "string", "enum": outcomes},
-				"confidence":   map[string]any{"type": "number", "minimum": 0, "maximum": 1},
+				"confidence":   map[string]any{"type": "number", "minimum": 0, "maximum": 1, "description": "Required. 0-1: how strongly the evidence supports the outcome."},
 				"customerGoal": text(3, 300),
 				"summary":      map[string]any{"type": "string", "minLength": 3, "maxLength": 800, "description": "For the support member, at most 2 sentences (40 words): what happened + what fixes it, citing evidence ids."},
 				"evidence": map[string]any{"type": "array", "maxItems": 12, "items": map[string]any{
@@ -69,7 +69,7 @@ func AgentTools() []ToolSpec {
 					"properties": map[string]any{"id": ids, "note": text(3, 200)}}},
 				"instructionSteps": map[string]any{"type": "array", "maxItems": 10, "items": text(3, 200), "description": "user_can_fix only."},
 				"helpArticleId":    ids,
-				"supportAction": map[string]any{"type": "object", "additionalProperties": false, "description": "support_can_fix only.",
+				"supportAction": map[string]any{"type": "object", "additionalProperties": false, "description": "support_can_fix only. refund_payment only on a payment with channel web; an app_store charge is never support_can_fix.",
 					"required": []string{"type", "reason"},
 					"properties": map[string]any{
 						"type":          map[string]any{"type": "string", "enum": []string{"restore_access", "refund_payment"}},

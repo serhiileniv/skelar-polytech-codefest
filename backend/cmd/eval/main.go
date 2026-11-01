@@ -46,12 +46,12 @@ func run() (bool, error) {
 	now := func() time.Time { return time.Now().UTC() }
 	repo := postgres.NewCaseRepo(pool)
 	model := llm.NewRouter(llm.Config{
-		APIKey: cfg.AnthropicAPIKey, Model: cfg.AnthropicModel, ReplayDir: cfg.ReplayDir,
+		APIKey: cfg.GroqAPIKey, Model: cfg.GroqModel, BaseURL: cfg.GroqBaseURL, ReplayDir: cfg.ReplayDir,
 		ForceReplay: cfg.Replay, Record: cfg.Record, ReplayDelay: 0,
 	})
 	eval := usecase.NewRunEval(usecase.NewResetDemo(postgres.NewDemoStore(pool)), usecase.NewInvestigateCase(repo, model, now), repo, now)
 
-	mode := "live " + cfg.AnthropicModel
+	mode := "live " + cfg.GroqModel
 	if model.Replaying() {
 		mode = "replay"
 	}

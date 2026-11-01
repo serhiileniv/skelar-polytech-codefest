@@ -52,9 +52,12 @@ func run() error {
 	now := func() time.Time { return time.Now().UTC() }
 	repo := postgres.NewCaseRepo(pool)
 	model := llm.NewRouter(llm.Config{
-		APIKey: cfg.AnthropicAPIKey, Model: cfg.AnthropicModel, ReplayDir: cfg.ReplayDir,
+		APIKey: cfg.GroqAPIKey, Model: cfg.GroqModel, BaseURL: cfg.GroqBaseURL, ReplayDir: cfg.ReplayDir,
 		ForceReplay: cfg.Replay, Record: cfg.Record, ReplayDelay: cfg.ReplayDelay,
 	})
+	if cfg.GroqAPIKey == "" && !cfg.Replay {
+		log.Warn("GROQ_API_KEY is not set: running in replay mode")
+	}
 	actions := usecase.NewExecuteAction(repo, now)
 	replies := usecase.NewReplyToCase(repo, repo, now)
 	fixPlans := memory.NewFixPlans()
@@ -85,7 +88,7 @@ func run() error {
 	errc := make(chan error, 1)
 	go func() {
 		log.Info("api listening", "addr", cfg.HTTPAddr, "frontendOrigins", cfg.FrontendOrigins,
-			"model", cfg.AnthropicModel, "replay", model.Replaying(), "record", cfg.Record)
+			"model", cfg.GroqModel, "replay", model.Replaying(), "record", cfg.Record)
 		errc <- srv.ListenAndServe()
 	}()
 

@@ -149,4 +149,4 @@ cd frontend && pnpm lint && pnpm typecheck && pnpm test
 
 ## Credits
 
-Built by Serhii Leniv and team at Skelar Polytech Codefest. Customer avatars: [Unsplash](https://unsplash.com/license), see [`frontend/public/avatars/CREDITS.md`](frontend/public/avatars/CREDITS.md).
+Built by Serhii Leniv and Serhii Burka at Skelar Polytech Codefest. Customer avatars: [Unsplash](https://unsplash.com/license), see [`frontend/public/avatars/CREDITS.md`](frontend/public/avatars/CREDITS.md).
